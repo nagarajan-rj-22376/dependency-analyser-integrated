@@ -38,3 +38,7 @@ test-project/
 compatibility-test.zip
 test-api.sh
 test-project.zip
+
+### Logs ###
+app.log
+log/

@@ -1,5 +1,6 @@
 package com.example.depanalysis.util;
 
+import com.example.depanalysis.dto.DeprecationInfo;
 import org.objectweb.asm.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -175,6 +176,198 @@ public class BytecodeAnalyzer {
 
         public Set<String> getMethods() {
             return methods;
+        }
+    }
+
+    // ==== DEPRECATION DETECTION METHODS ====
+
+    /**
+     * Find all deprecated elements (methods, classes, fields) in a JAR file
+     */
+    public static List<DeprecationInfo> findDeprecatedElements(Path jarPath) {
+        List<DeprecationInfo> deprecations = new ArrayList<>();
+        
+        try (JarFile jarFile = new JarFile(jarPath.toFile())) {
+            Enumeration<JarEntry> entries = jarFile.entries();
+            
+            while (entries.hasMoreElements()) {
+                JarEntry entry = entries.nextElement();
+                
+                if (entry.getName().endsWith(".class") && !entry.getName().contains("$")) {
+                    try (InputStream is = jarFile.getInputStream(entry)) {
+                        ClassReader classReader = new ClassReader(is);
+                        DeprecationVisitor visitor = new DeprecationVisitor();
+                        classReader.accept(visitor, 0);
+                        deprecations.addAll(visitor.getDeprecations());
+                    } catch (Exception e) {
+                        logger.debug("Error analyzing class {} for deprecations: {}", entry.getName(), e.getMessage());
+                    }
+                }
+            }
+        } catch (IOException e) {
+            logger.error("Error reading JAR file {} for deprecation analysis: {}", jarPath, e.getMessage());
+        }
+        
+        logger.info("Found {} deprecated elements in {}", deprecations.size(), jarPath.getFileName());
+        return deprecations;
+    }
+
+    /**
+     * Create a map of deprecated element name -> DeprecationInfo for fast lookup
+     */
+    public static Map<String, DeprecationInfo> getDeprecationMap(Path jarPath) {
+        Map<String, DeprecationInfo> deprecationMap = new HashMap<>();
+        List<DeprecationInfo> deprecations = findDeprecatedElements(jarPath);
+        
+        for (DeprecationInfo info : deprecations) {
+            deprecationMap.put(info.getElementName(), info);
+        }
+        
+        return deprecationMap;
+    }
+
+    /**
+     * ASM Visitor to detect @Deprecated annotations and @deprecated Javadoc
+     */
+    private static class DeprecationVisitor extends ClassVisitor {
+        private List<DeprecationInfo> deprecations = new ArrayList<>();
+        private String currentClassName;
+        private boolean classDeprecated = false;
+        private DeprecationInfo classDeprecationInfo;
+
+        public DeprecationVisitor() {
+            super(Opcodes.ASM9);
+        }
+
+        @Override
+        public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+            this.currentClassName = name.replace('/', '.');
+        }
+
+        @Override
+        public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+            if ("Ljava/lang/Deprecated;".equals(descriptor)) {
+                // Class-level deprecation
+                classDeprecated = true;
+                classDeprecationInfo = new DeprecationInfo(currentClassName, "CLASS");
+                classDeprecationInfo.setSourceLocation(currentClassName);
+                
+                return new DeprecationAnnotationVisitor(classDeprecationInfo);
+            }
+            return null;
+        }
+
+        @Override
+        public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+            // Only analyze public/protected methods
+            if ((access & Opcodes.ACC_PUBLIC) != 0 || (access & Opcodes.ACC_PROTECTED) != 0) {
+                return new DeprecationMethodVisitor(currentClassName, name, descriptor);
+            }
+            return null;
+        }
+
+        @Override
+        public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
+            // Only analyze public/protected fields
+            if ((access & Opcodes.ACC_PUBLIC) != 0 || (access & Opcodes.ACC_PROTECTED) != 0) {
+                return new DeprecationFieldVisitor(currentClassName, name, descriptor);
+            }
+            return null;
+        }
+
+        @Override
+        public void visitEnd() {
+            if (classDeprecated && classDeprecationInfo != null) {
+                deprecations.add(classDeprecationInfo);
+            }
+        }
+
+        public List<DeprecationInfo> getDeprecations() {
+            return deprecations;
+        }
+
+        /**
+         * Method visitor to detect deprecated methods
+         */
+        private class DeprecationMethodVisitor extends MethodVisitor {
+            private String className;
+            private String methodName;
+            private String methodDescriptor;
+
+            public DeprecationMethodVisitor(String className, String methodName, String methodDescriptor) {
+                super(Opcodes.ASM9);
+                this.className = className;
+                this.methodName = methodName;
+                this.methodDescriptor = methodDescriptor;
+            }
+
+            @Override
+            public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+                if ("Ljava/lang/Deprecated;".equals(descriptor)) {
+                    String elementName = className + "." + methodName + methodDescriptor;
+                    DeprecationInfo info = new DeprecationInfo(elementName, "METHOD");
+                    info.setSourceLocation(className);
+                    deprecations.add(info);
+                    
+                    return new DeprecationAnnotationVisitor(info);
+                }
+                return null;
+            }
+        }
+
+        /**
+         * Field visitor to detect deprecated fields
+         */
+        private class DeprecationFieldVisitor extends FieldVisitor {
+            private String className;
+            private String fieldName;
+            private String fieldDescriptor;
+
+            public DeprecationFieldVisitor(String className, String fieldName, String fieldDescriptor) {
+                super(Opcodes.ASM9);
+                this.className = className;
+                this.fieldName = fieldName;
+                this.fieldDescriptor = fieldDescriptor;
+            }
+
+            @Override
+            public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+                if ("Ljava/lang/Deprecated;".equals(descriptor)) {
+                    String elementName = className + "." + fieldName;
+                    DeprecationInfo info = new DeprecationInfo(elementName, "FIELD");
+                    info.setSourceLocation(className);
+                    deprecations.add(info);
+                    
+                    return new DeprecationAnnotationVisitor(info);
+                }
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Annotation visitor to extract @Deprecated annotation parameters
+     */
+    private static class DeprecationAnnotationVisitor extends AnnotationVisitor {
+        private DeprecationInfo deprecationInfo;
+
+        public DeprecationAnnotationVisitor(DeprecationInfo deprecationInfo) {
+            super(Opcodes.ASM9);
+            this.deprecationInfo = deprecationInfo;
+        }
+
+        @Override
+        public void visit(String name, Object value) {
+            if ("since".equals(name)) {
+                deprecationInfo.setSince((String) value);
+            }
+        }
+
+        @Override
+        public void visitEnum(String name, String descriptor, String value) {
+            if ("forRemoval".equals(name)) {
+                deprecationInfo.setForRemoval(Boolean.parseBoolean(value));
+            }
         }
     }
 }
