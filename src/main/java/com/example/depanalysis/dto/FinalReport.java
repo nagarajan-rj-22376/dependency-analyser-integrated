@@ -5,6 +5,8 @@ import java.util.List;
 public class FinalReport {
     private List<FeatureReportSection> sections;
 
+    public FinalReport() {}
+
     public FinalReport(List<FeatureReportSection> sections) {
         this.sections = sections;
     }

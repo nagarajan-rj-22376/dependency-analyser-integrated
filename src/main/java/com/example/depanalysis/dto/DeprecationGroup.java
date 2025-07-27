@@ -2,24 +2,31 @@ package com.example.depanalysis.dto;
 
 import java.util.List;
 
-public class DeprecationIssue {
-    private String methodName;
+public class DeprecationGroup {
+    private String methodSignature;
     private String className;
+    private String methodName;
     private String deprecatedSince;
     private String reason;
     private String suggestedReplacement;
-    private int usageCount;
+    private int totalUsageCount;
     private List<String> usageLocations;
     private String riskLevel;
 
-    public DeprecationIssue() {}
+    public DeprecationGroup() {}
 
-    public String getMethodName() {
-        return methodName;
+    public DeprecationGroup(String className, String methodName) {
+        this.className = className;
+        this.methodName = methodName;
+        this.methodSignature = className + "." + methodName;
     }
 
-    public void setMethodName(String methodName) {
-        this.methodName = methodName;
+    public String getMethodSignature() {
+        return methodSignature;
+    }
+
+    public void setMethodSignature(String methodSignature) {
+        this.methodSignature = methodSignature;
     }
 
     public String getClassName() {
@@ -28,6 +35,14 @@ public class DeprecationIssue {
 
     public void setClassName(String className) {
         this.className = className;
+    }
+
+    public String getMethodName() {
+        return methodName;
+    }
+
+    public void setMethodName(String methodName) {
+        this.methodName = methodName;
     }
 
     public String getDeprecatedSince() {
@@ -54,12 +69,12 @@ public class DeprecationIssue {
         this.suggestedReplacement = suggestedReplacement;
     }
 
-    public int getUsageCount() {
-        return usageCount;
+    public int getTotalUsageCount() {
+        return totalUsageCount;
     }
 
-    public void setUsageCount(int usageCount) {
-        this.usageCount = usageCount;
+    public void setTotalUsageCount(int totalUsageCount) {
+        this.totalUsageCount = totalUsageCount;
     }
 
     public List<String> getUsageLocations() {
@@ -68,6 +83,7 @@ public class DeprecationIssue {
 
     public void setUsageLocations(List<String> usageLocations) {
         this.usageLocations = usageLocations;
+        this.totalUsageCount = usageLocations != null ? usageLocations.size() : 0;
     }
 
     public String getRiskLevel() {

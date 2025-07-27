@@ -2,27 +2,33 @@ package com.example.depanalysis.dto;
 
 import java.util.List;
 
-public class CompatibilityIssue {
-    private String issueType;
+public class CompatibilityGroup {
+    private String methodSignature;
     private String className;
     private String methodName;
+    private String issueType;
     private String expectedSignature;
     private String actualSignature;
-    private String usageLocation;
     private String suggestedFix;
     private String riskLevel;
     private String impact;
-    private int callCount;
+    private int totalCallCount;
     private List<String> callerLocations;
 
-    public CompatibilityIssue() {}
+    public CompatibilityGroup() {}
 
-    public String getIssueType() {
-        return issueType;
+    public CompatibilityGroup(String className, String methodName) {
+        this.className = className;
+        this.methodName = methodName;
+        this.methodSignature = className + "." + methodName;
     }
 
-    public void setIssueType(String issueType) {
-        this.issueType = issueType;
+    public String getMethodSignature() {
+        return methodSignature;
+    }
+
+    public void setMethodSignature(String methodSignature) {
+        this.methodSignature = methodSignature;
     }
 
     public String getClassName() {
@@ -41,6 +47,14 @@ public class CompatibilityIssue {
         this.methodName = methodName;
     }
 
+    public String getIssueType() {
+        return issueType;
+    }
+
+    public void setIssueType(String issueType) {
+        this.issueType = issueType;
+    }
+
     public String getExpectedSignature() {
         return expectedSignature;
     }
@@ -55,14 +69,6 @@ public class CompatibilityIssue {
 
     public void setActualSignature(String actualSignature) {
         this.actualSignature = actualSignature;
-    }
-
-    public String getUsageLocation() {
-        return usageLocation;
-    }
-
-    public void setUsageLocation(String usageLocation) {
-        this.usageLocation = usageLocation;
     }
 
     public String getSuggestedFix() {
@@ -89,12 +95,12 @@ public class CompatibilityIssue {
         this.impact = impact;
     }
 
-    public int getCallCount() {
-        return callCount;
+    public int getTotalCallCount() {
+        return totalCallCount;
     }
 
-    public void setCallCount(int callCount) {
-        this.callCount = callCount;
+    public void setTotalCallCount(int totalCallCount) {
+        this.totalCallCount = totalCallCount;
     }
 
     public List<String> getCallerLocations() {
@@ -103,5 +109,6 @@ public class CompatibilityIssue {
 
     public void setCallerLocations(List<String> callerLocations) {
         this.callerLocations = callerLocations;
+        this.totalCallCount = callerLocations != null ? callerLocations.size() : 0;
     }
 }
