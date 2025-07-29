@@ -19,12 +19,11 @@ public class ReportGenerator {
 
     @Autowired
     public ReportGenerator(HtmlReportHandler htmlHandler, 
-                          JsonReportHandler jsonHandler,
-                          PdfReportHandler pdfHandler) {
+                          JsonReportHandler jsonHandler) {
         handlers = new HashMap<>();
         handlers.put(ReportFormat.HTML, htmlHandler);
         handlers.put(ReportFormat.JSON, jsonHandler);
-        handlers.put(ReportFormat.PDF, pdfHandler);
+        // PDF handler will be added in future versions
         
         logger.info("ReportGenerator initialized with {} handlers", handlers.size());
     }

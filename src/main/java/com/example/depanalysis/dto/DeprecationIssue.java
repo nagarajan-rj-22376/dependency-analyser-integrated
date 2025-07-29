@@ -11,6 +11,7 @@ public class DeprecationIssue {
     private int usageCount;
     private List<String> usageLocations;
     private String riskLevel;
+    private String sourceType; // "PROJECT" or "JAR"
 
     public DeprecationIssue() {}
 
@@ -76,5 +77,13 @@ public class DeprecationIssue {
 
     public void setRiskLevel(String riskLevel) {
         this.riskLevel = riskLevel;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(String sourceType) {
+        this.sourceType = sourceType;
     }
 }
