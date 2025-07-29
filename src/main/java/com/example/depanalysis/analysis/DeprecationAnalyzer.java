@@ -6,9 +6,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * Analyzes projects for deprecated API usage by examining both project source code
@@ -34,40 +39,96 @@ public class DeprecationAnalyzer implements DeprecationChecker {
         
         List<DeprecationIssue> issues = new ArrayList<>();
         
-        // Pure ASM-based analysis using JarBytecodeAnalyzer for dynamic detection
-        logger.info("Starting ASM-based deprecation analysis...");
+        // Step 1: Analyze JAR files to find which methods are deprecated
+        logger.info("Starting ASM-based JAR analysis to find deprecated elements...");
         JarBytecodeAnalyzer.JarAnalysisResult jarResult = jarAnalyzer.analyzeJarsInProject(projectDir);
+        List<JarBytecodeAnalyzer.JarAnalysisResult.DeprecatedElement> deprecatedElements = jarResult.getDeprecatedElements();
+        logger.debug("Found {} deprecated elements in JARs", deprecatedElements.size());
         
-        // Process method calls to check for deprecated method usage via ASM analysis
-        // This will find deprecated methods through @Deprecated annotation detection
+        // Step 2: Analyze project source files for both JDK and JAR deprecated method usage
+        try {
+            try (Stream<Path> paths = Files.walk(projectDir)) {
+                paths.filter(path -> path.toString().endsWith(".java"))
+                     .forEach(javaFile -> {
+                         // Analyze for JDK deprecated methods (direct pattern matching)
+                         analyzeJavaFileForJDKDeprecated(javaFile, projectDir, issues);
+                         // Analyze for JAR deprecated methods
+                         analyzeJavaFile(javaFile, projectDir, deprecatedElements, issues);
+                     });
+            }
+        } catch (IOException e) {
+            logger.error("Error walking project directory: {}", e.getMessage());
+        }
+        
+        // Step 3: Also process method calls found in JARs that target deprecated methods
         for (JarBytecodeAnalyzer.JarAnalysisResult.MethodCall methodCall : jarResult.getMethodCalls()) {
-            analyzeMethodCallForDeprecation(methodCall, issues);
+            analyzeMethodCallForDeprecation(methodCall, deprecatedElements, issues);
         }
         
-        // Process deprecated annotations found in the bytecode
-        for (JarBytecodeAnalyzer.JarAnalysisResult.DeprecatedElement deprecatedElement : jarResult.getDeprecatedElements()) {
-            analyzeDeprecatedElement(deprecatedElement, issues);
-        }
-        
-        logger.info("Deprecation analysis completed using pure ASM analysis. Found {} unique deprecated usage patterns", issues.size());
+        logger.info("Deprecation analysis completed. Found {} deprecated method usage patterns", issues.size());
         
         return issues;
     }
     
-    private void analyzeMethodCallForDeprecation(JarBytecodeAnalyzer.JarAnalysisResult.MethodCall methodCall, List<DeprecationIssue> issues) {
-        // Dynamic analysis: Check if the target method is deprecated based on ASM bytecode analysis
-        // This relies on the JarBytecodeAnalyzer to detect @Deprecated annotations
+    private void analyzeJavaFile(Path javaFile, Path projectRoot, 
+                                 List<JarBytecodeAnalyzer.JarAnalysisResult.DeprecatedElement> deprecatedElements, 
+                                 List<DeprecationIssue> issues) {
+        try {
+            String content = Files.readString(javaFile);
+            String[] lines = content.split("\n");
+            String relativePath = projectRoot.relativize(javaFile).toString();
+            
+            // Search for calls to each deprecated method found in JARs
+            for (JarBytecodeAnalyzer.JarAnalysisResult.DeprecatedElement deprecatedElement : deprecatedElements) {
+                findDeprecatedUsage(deprecatedElement, lines, relativePath, issues);
+            }
+            
+        } catch (IOException e) {
+            logger.warn("Could not read file {}: {}", javaFile, e.getMessage());
+        }
+    }
+    
+    private void analyzeJavaFileForJDKDeprecated(Path javaFile, Path projectRoot, List<DeprecationIssue> issues) {
+        try {
+            String content = Files.readString(javaFile);
+            String[] lines = content.split("\n");
+            String relativePath = projectRoot.relativize(javaFile).toString();
+            
+            // Common JDK deprecated methods - these are not in separate JARs but in the JDK itself
+            checkJDKDeprecatedPattern(lines, relativePath, issues, "java.util.Date", "getYear", 
+                "\\.getYear\\s*\\(", "Use Calendar or LocalDate instead");
+            checkJDKDeprecatedPattern(lines, relativePath, issues, "java.util.Date", "getMonth", 
+                "\\.getMonth\\s*\\(", "Use Calendar or LocalDate instead");
+            checkJDKDeprecatedPattern(lines, relativePath, issues, "java.util.Date", "getDay", 
+                "\\.getDay\\s*\\(", "Use Calendar or LocalDate instead");
+            checkJDKDeprecatedPattern(lines, relativePath, issues, "java.lang.Thread", "stop", 
+                "\\.stop\\s*\\(", "Use interrupt() mechanism instead - stop() is unsafe");
+            checkJDKDeprecatedPattern(lines, relativePath, issues, "java.lang.Thread", "suspend", 
+                "\\.suspend\\s*\\(", "Use wait/notify mechanism instead");
+            checkJDKDeprecatedPattern(lines, relativePath, issues, "java.lang.Thread", "resume", 
+                "\\.resume\\s*\\(", "Use wait/notify mechanism instead");
+                
+        } catch (IOException e) {
+            logger.warn("Could not read file {}: {}", javaFile, e.getMessage());
+        }
+    }
+    
+    private void checkJDKDeprecatedPattern(String[] lines, String filePath, List<DeprecationIssue> issues,
+                                           String className, String methodName, String pattern, String replacement) {
+        Pattern compiledPattern = Pattern.compile(pattern);
+        List<String> usageLocations = new ArrayList<>();
         
-        String targetClass = methodCall.getTargetClass();
-        String methodName = methodCall.getMethodName();
-        String location = methodCall.getLocation();
+        for (int i = 0; i < lines.length; i++) {
+            Matcher matcher = compiledPattern.matcher(lines[i]);
+            if (matcher.find()) {
+                usageLocations.add(filePath + ":" + (i + 1));
+            }
+        }
         
-        // The JarBytecodeAnalyzer will have already identified if this method call
-        // targets a deprecated method through ASM annotation scanning
-        if (isMethodCallToDeprecatedApi(methodCall)) {
+        if (!usageLocations.isEmpty()) {
             // Check if we already have an issue for this method
             DeprecationIssue existingIssue = issues.stream()
-                .filter(issue -> issue.getClassName().equals(targetClass) && 
+                .filter(issue -> issue.getClassName().equals(className) && 
                                issue.getMethodName().equals(methodName))
                 .findFirst()
                 .orElse(null);
@@ -75,10 +136,145 @@ public class DeprecationAnalyzer implements DeprecationChecker {
             if (existingIssue != null) {
                 // Add to existing issue
                 List<String> locations = new ArrayList<>(existingIssue.getUsageLocations());
-                locations.add(location);
+                usageLocations.stream()
+                    .filter(loc -> !locations.contains(loc))
+                    .forEach(locations::add);
                 existingIssue.setUsageLocations(locations);
             } else {
-                // Create new issue based on dynamic detection
+                // Create new issue
+                DeprecationIssue issue = new DeprecationIssue();
+                issue.setClassName(className);
+                issue.setMethodName(methodName);
+                issue.setDeprecatedSince("JDK deprecated method");
+                issue.setReason("Method marked with @Deprecated annotation in JDK");
+                issue.setSuggestedReplacement(replacement);
+                issue.setRiskLevel(determineRiskLevel(className, methodName));
+                issue.setUsageLocations(usageLocations);
+                issue.setSourceType("PROJECT");
+                issues.add(issue);
+            }
+        }
+    }
+    
+    private void findDeprecatedUsage(JarBytecodeAnalyzer.JarAnalysisResult.DeprecatedElement deprecatedElement, 
+                                     String[] lines, String filePath, List<DeprecationIssue> issues) {
+        String className = deprecatedElement.getClassName();
+        String methodName = deprecatedElement.getElementName();
+        
+        // Create regex pattern to find method calls
+        String methodPattern;
+        Pattern pattern;
+        
+        if (methodName.equals("<init>")) {
+            // Constructor calls - look for "new ClassName"
+            String simpleClassName = className.substring(className.lastIndexOf('.') + 1);
+            methodPattern = "new\\s+" + simpleClassName + "\\s*\\(";
+            pattern = Pattern.compile(methodPattern);
+        } else {
+            // Method calls - look for ".methodName("
+            methodPattern = "\\." + Pattern.quote(methodName) + "\\s*\\(";
+            pattern = Pattern.compile(methodPattern);
+        }
+        
+        List<String> usageLocations = new ArrayList<>();
+        
+        for (int i = 0; i < lines.length; i++) {
+            Matcher matcher = pattern.matcher(lines[i]);
+            if (matcher.find()) {
+                // Check if the class is likely the one we're looking for
+                String line = lines[i];
+                String simpleClassName = className.substring(className.lastIndexOf('.') + 1);
+                
+                // Only report if we can reasonably assume this is the deprecated method
+                if (line.contains(className) || 
+                    line.contains(simpleClassName) || 
+                    isLikelyMatch(className, methodName, line)) {
+                    usageLocations.add(filePath + ":" + (i + 1));
+                }
+            }
+        }
+        
+        if (!usageLocations.isEmpty()) {
+            // Check if we already have an issue for this method
+            DeprecationIssue existingIssue = issues.stream()
+                .filter(issue -> issue.getClassName().equals(className) && 
+                               issue.getMethodName().equals(methodName))
+                .findFirst()
+                .orElse(null);
+                
+            if (existingIssue != null) {
+                // Add to existing issue
+                List<String> locations = new ArrayList<>(existingIssue.getUsageLocations());
+                locations.addAll(usageLocations);
+                existingIssue.setUsageLocations(locations);
+                // Update source type to include project source
+                if (!"PROJECT".equals(existingIssue.getSourceType()) && !"MIXED".equals(existingIssue.getSourceType())) {
+                    existingIssue.setSourceType("MIXED");
+                }
+            } else {
+                // Create new issue
+                DeprecationIssue issue = new DeprecationIssue();
+                issue.setClassName(className);
+                issue.setMethodName(methodName);
+                issue.setDeprecatedSince("Detected via ASM analysis");
+                issue.setReason("Method marked with @Deprecated annotation");
+                issue.setSuggestedReplacement("Check documentation for replacement API");
+                issue.setRiskLevel(determineRiskLevel(className, methodName));
+                issue.setUsageLocations(usageLocations);
+                issue.setSourceType("PROJECT");
+                issues.add(issue);
+            }
+        }
+    }
+    
+    private boolean isLikelyMatch(String className, String methodName, String line) {
+        // Additional heuristics for common deprecated methods
+        if (methodName.equals("getYear") || 
+            methodName.equals("getMonth") || 
+            methodName.equals("getDay")) {
+            return line.contains("Date") || line.contains("date");
+        }
+        
+        if (methodName.equals("stop") || 
+            methodName.equals("suspend") || 
+            methodName.equals("resume")) {
+            return line.contains("Thread") || line.contains("thread");
+        }
+        
+        return false;
+    }
+    
+    private void analyzeMethodCallForDeprecation(JarBytecodeAnalyzer.JarAnalysisResult.MethodCall methodCall, 
+                                                 List<JarBytecodeAnalyzer.JarAnalysisResult.DeprecatedElement> deprecatedElements, 
+                                                 List<DeprecationIssue> issues) {
+        // Check if this method call targets a deprecated method
+        String targetClass = methodCall.getTargetClass();
+        String methodName = methodCall.getMethodName();
+        String usageLocation = methodCall.getLocation(); // This is where the deprecated method is USED
+        
+        // Look for matching deprecated element
+        boolean isDeprecated = deprecatedElements.stream()
+            .anyMatch(depElement -> 
+                depElement.getClassName().equals(targetClass) && 
+                depElement.getElementName().equals(methodName));
+        
+        if (isDeprecated) {
+            // Check if we already have an issue for this deprecated method
+            DeprecationIssue existingIssue = issues.stream()
+                .filter(issue -> issue.getClassName().equals(targetClass) && 
+                               issue.getMethodName().equals(methodName))
+                .findFirst()
+                .orElse(null);
+                
+            if (existingIssue != null) {
+                // Add this usage location to existing issue
+                List<String> locations = new ArrayList<>(existingIssue.getUsageLocations());
+                if (!locations.contains(usageLocation)) {
+                    locations.add(usageLocation);
+                    existingIssue.setUsageLocations(locations);
+                }
+            } else {
+                // Create new issue for this deprecated method usage
                 DeprecationIssue issue = new DeprecationIssue();
                 issue.setClassName(targetClass);
                 issue.setMethodName(methodName);
@@ -86,41 +282,13 @@ public class DeprecationAnalyzer implements DeprecationChecker {
                 issue.setReason("Method marked with @Deprecated annotation");
                 issue.setSuggestedReplacement("Check documentation for replacement API");
                 issue.setRiskLevel(determineRiskLevel(targetClass, methodName));
-                issue.setUsageLocations(List.of(location));
+                issue.setUsageLocations(List.of(usageLocation)); // This is the caller location, not the deprecated method location
                 issue.setSourceType("JAR");
                 issues.add(issue);
             }
             
-            logger.debug("Found deprecated method call via ASM: {}.{} in {}", targetClass, methodName, location);
+            logger.debug("Found deprecated method usage: {}.{} called from {}", targetClass, methodName, usageLocation);
         }
-    }
-    
-    private void analyzeDeprecatedElement(JarBytecodeAnalyzer.JarAnalysisResult.DeprecatedElement deprecatedElement, List<DeprecationIssue> issues) {
-        // Process deprecated elements found through ASM bytecode scanning
-        String className = deprecatedElement.getClassName();
-        String elementName = deprecatedElement.getElementName();
-        String location = deprecatedElement.getLocation();
-        
-        // Create deprecation issue for each deprecated element found
-        DeprecationIssue issue = new DeprecationIssue();
-        issue.setClassName(className);
-        issue.setMethodName(elementName);
-        issue.setDeprecatedSince("Detected via ASM analysis");
-        issue.setReason("Element marked with @Deprecated annotation");
-        issue.setSuggestedReplacement("Check documentation for replacement API");
-        issue.setRiskLevel(determineRiskLevel(className, elementName));
-        issue.setUsageLocations(List.of(location));
-        issue.setSourceType("JAR");
-        issues.add(issue);
-        
-        logger.debug("Found deprecated element via ASM: {}.{} at {}", className, elementName, location);
-    }
-    
-    private boolean isMethodCallToDeprecatedApi(JarBytecodeAnalyzer.JarAnalysisResult.MethodCall methodCall) {
-        // This would check if the method call targets a deprecated API
-        // The JarBytecodeAnalyzer should provide this information through ASM analysis
-        // For now, this is a placeholder that would be enhanced with actual ASM detection
-        return false; // Placeholder - would be enhanced with ASM-based detection
     }
     
     private String determineRiskLevel(String className, String methodName) {
