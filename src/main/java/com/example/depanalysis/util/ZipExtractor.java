@@ -15,19 +15,23 @@ public class ZipExtractor {
     private static final Logger logger = LoggerFactory.getLogger(ZipExtractor.class);
     
     public static Path extractZip(MultipartFile file) throws IOException {
-        logger.info("Starting ZIP extraction for file: {}", file.getOriginalFilename());
+        String originalFilename = file.getOriginalFilename();
+        logger.info("Starting archive extraction for file: {}", originalFilename);
+        
+        boolean isWarFile = originalFilename != null && originalFilename.toLowerCase().endsWith(".war");
         Path tempDir = Files.createTempDirectory("uploaded_project_");
-        Path tempZipFile = null;
+        Path tempArchiveFile = null;
         
         try {
             // First save the MultipartFile to a temporary file
-            tempZipFile = Files.createTempFile("upload_", ".zip");
-            file.transferTo(tempZipFile.toFile());
+            String extension = isWarFile ? ".war" : ".zip";
+            tempArchiveFile = Files.createTempFile("upload_", extension);
+            file.transferTo(tempArchiveFile.toFile());
             
-            logger.debug("Created temporary ZIP file at: {}", tempZipFile);
+            logger.debug("Created temporary archive file at: {}", tempArchiveFile);
             
-            // Use ZipFile for better compatibility with various ZIP formats
-            try (ZipFile zipFile = new ZipFile(tempZipFile.toFile())) {
+            // Use ZipFile for better compatibility with various ZIP/WAR formats
+            try (ZipFile zipFile = new ZipFile(tempArchiveFile.toFile())) {
                 Enumeration<? extends ZipEntry> entries = zipFile.entries();
                 
                 while (entries.hasMoreElements()) {
@@ -61,11 +65,16 @@ public class ZipExtractor {
                 }
             }
             
-            logger.info("Successfully extracted ZIP to: {}", tempDir);
+            // Post-process WAR files to extract nested JARs
+            if (isWarFile) {
+                extractNestedJarsFromWar(tempDir);
+            }
+            
+            logger.info("Successfully extracted {} to: {}", isWarFile ? "WAR" : "ZIP", tempDir);
             return tempDir;
             
         } catch (IOException e) {
-            logger.error("Error extracting ZIP file {}: {}", file.getOriginalFilename(), e.getMessage(), e);
+            logger.error("Error extracting archive file {}: {}", originalFilename, e.getMessage(), e);
             
             // Clean up temp directory if extraction failed
             if (Files.exists(tempDir)) {
@@ -76,16 +85,16 @@ public class ZipExtractor {
                 }
             }
             
-            throw new IOException("Failed to extract ZIP file: " + e.getMessage(), e);
+            throw new IOException("Failed to extract archive file: " + e.getMessage(), e);
             
         } finally {
-            // Clean up temporary ZIP file
-            if (tempZipFile != null && Files.exists(tempZipFile)) {
+            // Clean up temporary archive file
+            if (tempArchiveFile != null && Files.exists(tempArchiveFile)) {
                 try {
-                    Files.delete(tempZipFile);
-                    logger.debug("Cleaned up temporary ZIP file: {}", tempZipFile);
+                    Files.delete(tempArchiveFile);
+                    logger.debug("Cleaned up temporary archive file: {}", tempArchiveFile);
                 } catch (IOException e) {
-                    logger.warn("Failed to delete temporary ZIP file: {}", e.getMessage());
+                    logger.warn("Failed to delete temporary archive file: {}", e.getMessage());
                 }
             }
         }
@@ -102,5 +111,83 @@ public class ZipExtractor {
                         // Log but don't throw - best effort cleanup
                     }
                 });
+    }
+    
+    /**
+     * Extracts nested JAR files from WAR structure for deeper analysis
+     * WAR files typically contain JARs in WEB-INF/lib/ directory
+     */
+    private static void extractNestedJarsFromWar(Path warExtractDir) throws IOException {
+        logger.info("Extracting nested JARs from WAR file structure");
+        
+        // Look for WEB-INF/lib directory (standard WAR structure)
+        Path webInfLib = warExtractDir.resolve("WEB-INF").resolve("lib");
+        if (Files.exists(webInfLib) && Files.isDirectory(webInfLib)) {
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(webInfLib, "*.jar")) {
+                for (Path jarFile : stream) {
+                    extractNestedJar(jarFile, webInfLib);
+                }
+            }
+        }
+        
+        // Also look for any JAR files in the root or other directories
+        Files.walk(warExtractDir)
+                .filter(path -> path.toString().toLowerCase().endsWith(".jar"))
+                .filter(path -> !path.getParent().toString().contains("extracted_")) // Avoid re-extracting
+                .forEach(jarPath -> {
+                    try {
+                        extractNestedJar(jarPath, jarPath.getParent());
+                    } catch (IOException e) {
+                        logger.warn("Failed to extract nested JAR {}: {}", jarPath, e.getMessage());
+                    }
+                });
+        
+        logger.info("Completed extraction of nested JARs from WAR structure");
+    }
+    
+    /**
+     * Extracts a single JAR file to enable analysis of its contents
+     */
+    private static void extractNestedJar(Path jarFile, Path parentDir) throws IOException {
+        String jarName = jarFile.getFileName().toString();
+        String extractDirName = jarName.substring(0, jarName.lastIndexOf('.')) + "_extracted";
+        Path extractDir = parentDir.resolve(extractDirName);
+        
+        logger.debug("Extracting nested JAR: {} to {}", jarFile, extractDir);
+        
+        Files.createDirectories(extractDir);
+        
+        try (ZipFile zipFile = new ZipFile(jarFile.toFile())) {
+            Enumeration<? extends ZipEntry> entries = zipFile.entries();
+            
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                Path newPath = extractDir.resolve(entry.getName()).normalize();
+                
+                // Security check: prevent zip slip vulnerability
+                if (!newPath.startsWith(extractDir)) {
+                    logger.warn("Skipping JAR entry outside target directory: {}", entry.getName());
+                    continue;
+                }
+                
+                if (entry.isDirectory()) {
+                    Files.createDirectories(newPath);
+                } else {
+                    Files.createDirectories(newPath.getParent());
+                    
+                    try (InputStream is = zipFile.getInputStream(entry);
+                         OutputStream os = Files.newOutputStream(newPath)) {
+                        
+                        byte[] buffer = new byte[8192];
+                        int len;
+                        while ((len = is.read(buffer)) > 0) {
+                            os.write(buffer, 0, len);
+                        }
+                    }
+                }
+            }
+        }
+        
+        logger.debug("Successfully extracted nested JAR: {} ({} bytes)", jarName, Files.size(jarFile));
     }
 }

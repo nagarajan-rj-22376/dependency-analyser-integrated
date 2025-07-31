@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Upload Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .status { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .processing { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>Upload Test</h1>
+    <input type="file" id="fileInput" accept=".zip">
+    <button id="uploadBtn" onclick="uploadFile()">Upload & Analyze</button>
+    <div id="status"></div>
+
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const status = document.getElementById('status');
+            const uploadBtn = document.getElementById('uploadBtn');
+            
+            if (!fileInput.files[0]) {
+                status.innerHTML = '<div class="status error">Please select a ZIP file</div>';
+                return;
+            }
+            
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Processing...';
+            status.innerHTML = '<div class="status processing">Analyzing dependencies...</div>';
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            try {
+                const response = await fetch('http://localhost:8081/api/reports/upload/html', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.text();
+                    console.log('Upload successful:', result);
+                    status.innerHTML = '<div class="status success">Analysis complete! Redirecting to results page...</div>';
+                    
+                    // Redirect after showing success message
+                    setTimeout(() => {
+                        console.log('Redirecting now...');
+                        window.location.href = 'http://localhost:8081/results.html?file=dependency-analysis-report';
+                    }, 1500);
+                } else {
+                    throw new Error(`Upload failed: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                status.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload & Analyze';
+            }
+        }
+    </script>
+</body>
+</html>

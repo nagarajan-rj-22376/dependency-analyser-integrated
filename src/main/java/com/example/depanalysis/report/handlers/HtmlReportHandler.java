@@ -55,10 +55,56 @@ public class HtmlReportHandler implements ReportFormatHandler {
             .append("            </div>\n")
             .append("        </header>\n");
 
-        if (report.getSections() != null) {
-            for (FeatureReportSection section : report.getSections()) {
-                html.append(generateSectionHtml(section));
+        if (report.getSections() != null && !report.getSections().isEmpty()) {
+            // Generate tab navigation
+            html.append("        <div class=\"tab-container\">\n")
+                .append("            <div class=\"tab-navigation\">\n");
+            
+            for (int i = 0; i < report.getSections().size(); i++) {
+                FeatureReportSection section = report.getSections().get(i);
+                String featureName = section.getFeatureName();
+                String activeClass = i == 0 ? "active" : "";
+                String tabId = getTabId(featureName);
+                
+                html.append("                <button class=\"tab-button ").append(activeClass).append("\" ")
+                    .append("data-tab=\"").append(tabId).append("\" ")
+                    .append("onclick=\"switchTab('").append(tabId).append("')\">\n")
+                    .append("                    ").append(getFeatureIcon(featureName)).append(" ").append(featureName).append("\n")
+                    .append("                </button>\n");
             }
+            
+            html.append("            </div>\n")
+                .append("            <div class=\"tab-content\">\n");
+            
+            // Generate tab content
+            for (int i = 0; i < report.getSections().size(); i++) {
+                FeatureReportSection section = report.getSections().get(i);
+                String featureName = section.getFeatureName();
+                String activeClass = i == 0 ? "active" : "";
+                String tabId = getTabId(featureName);
+                
+                html.append("                <div class=\"tab-panel ").append(activeClass).append("\" id=\"").append(tabId).append("\">\n")
+                    .append("                    <section class=\"analysis-section\">\n")
+                    .append("                        <h2 class=\"section-title\">").append(getFeatureIcon(featureName)).append(" ").append(featureName).append("</h2>\n");
+                
+                if ("Vulnerability Scan".equalsIgnoreCase(featureName)) {
+                    html.append(generateVulnerabilitySection(section.getResult()));
+                } else if ("Deprecation Analysis".equalsIgnoreCase(featureName)) {
+                    html.append(generateDeprecationSection(section.getResult()));
+                } else if ("API Compatibility".equalsIgnoreCase(featureName)) {
+                    html.append(generateCompatibilitySection(section.getResult()));
+                } else {
+                    html.append("                        <div class=\"content-card\">\n")
+                        .append("                            <pre>").append(escapeHtml(section.getResult().toString())).append("</pre>\n")
+                        .append("                        </div>\n");
+                }
+                
+                html.append("                    </section>\n")
+                    .append("                </div>\n");
+            }
+            
+            html.append("            </div>\n")
+                .append("        </div>\n");
         }
 
         html.append("    </div>\n")
@@ -69,6 +115,13 @@ public class HtmlReportHandler implements ReportFormatHandler {
             .append("</html>");
 
         return html.toString();
+    }
+
+    private String getTabId(String featureName) {
+        return featureName.toLowerCase()
+                         .replace(" ", "-")
+                         .replace("&", "and")
+                         .replaceAll("[^a-z0-9-]", "");
     }
 
     private String generateSectionHtml(FeatureReportSection section) {
@@ -401,6 +454,71 @@ public class HtmlReportHandler implements ReportFormatHandler {
                "    font-size: 1.1em;\n" +
                "}\n" +
                "\n" +
+               ".tab-container {\n" +
+               "    background: rgba(255, 255, 255, 0.95);\n" +
+               "    border-radius: 15px;\n" +
+               "    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);\n" +
+               "    overflow: hidden;\n" +
+               "}\n" +
+               "\n" +
+               ".tab-navigation {\n" +
+               "    display: flex;\n" +
+               "    background: #f8f9fa;\n" +
+               "    border-bottom: 1px solid #e9ecef;\n" +
+               "    overflow-x: auto;\n" +
+               "}\n" +
+               "\n" +
+               ".tab-button {\n" +
+               "    background: none;\n" +
+               "    border: none;\n" +
+               "    padding: 20px 30px;\n" +
+               "    font-size: 1.1em;\n" +
+               "    font-weight: 600;\n" +
+               "    color: #6c757d;\n" +
+               "    cursor: pointer;\n" +
+               "    transition: all 0.3s ease;\n" +
+               "    border-bottom: 3px solid transparent;\n" +
+               "    white-space: nowrap;\n" +
+               "    position: relative;\n" +
+               "}\n" +
+               "\n" +
+               ".tab-button:hover {\n" +
+               "    color: #495057;\n" +
+               "    background: rgba(0, 0, 0, 0.05);\n" +
+               "}\n" +
+               "\n" +
+               ".tab-button.active {\n" +
+               "    color: #2c3e50;\n" +
+               "    background: white;\n" +
+               "    border-bottom-color: #e74c3c;\n" +
+               "    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);\n" +
+               "}\n" +
+               "\n" +
+               ".tab-content {\n" +
+               "    min-height: 400px;\n" +
+               "}\n" +
+               "\n" +
+               ".tab-panel {\n" +
+               "    display: none;\n" +
+               "    padding: 30px;\n" +
+               "    animation: fadeIn 0.3s ease-in;\n" +
+               "}\n" +
+               "\n" +
+               ".tab-panel.active {\n" +
+               "    display: block;\n" +
+               "}\n" +
+               "\n" +
+               "@keyframes fadeIn {\n" +
+               "    from {\n" +
+               "        opacity: 0;\n" +
+               "        transform: translateY(10px);\n" +
+               "    }\n" +
+               "    to {\n" +
+               "        opacity: 1;\n" +
+               "        transform: translateY(0);\n" +
+               "    }\n" +
+               "}\n" +
+               "\n" +
                ".analysis-section {\n" +
                "    background: rgba(255, 255, 255, 0.95);\n" +
                "    border-radius: 15px;\n" +
@@ -658,6 +776,26 @@ public class HtmlReportHandler implements ReportFormatHandler {
                "        padding: 10px;\n" +
                "    }\n" +
                "    \n" +
+               "    .tab-navigation {\n" +
+               "        flex-direction: column;\n" +
+               "    }\n" +
+               "    \n" +
+               "    .tab-button {\n" +
+               "        text-align: center;\n" +
+               "        padding: 15px 20px;\n" +
+               "        border-bottom: 1px solid #e9ecef;\n" +
+               "        border-right: none;\n" +
+               "    }\n" +
+               "    \n" +
+               "    .tab-button.active {\n" +
+               "        border-bottom: 1px solid #e9ecef;\n" +
+               "        border-left: 3px solid #e74c3c;\n" +
+               "    }\n" +
+               "    \n" +
+               "    .tab-panel {\n" +
+               "        padding: 20px 15px;\n" +
+               "    }\n" +
+               "    \n" +
                "    .group-header {\n" +
                "        flex-direction: column;\n" +
                "        align-items: flex-start;\n" +
@@ -672,7 +810,30 @@ public class HtmlReportHandler implements ReportFormatHandler {
     }
 
     private String getJavaScript() {
-        return "// Smooth scrolling for internal links\n" +
+        return "// Tab switching functionality\n" +
+               "function switchTab(tabId) {\n" +
+               "    // Hide all tab panels\n" +
+               "    const panels = document.querySelectorAll('.tab-panel');\n" +
+               "    panels.forEach(panel => panel.classList.remove('active'));\n" +
+               "    \n" +
+               "    // Remove active class from all tab buttons\n" +
+               "    const buttons = document.querySelectorAll('.tab-button');\n" +
+               "    buttons.forEach(button => button.classList.remove('active'));\n" +
+               "    \n" +
+               "    // Show selected tab panel\n" +
+               "    const targetPanel = document.getElementById(tabId);\n" +
+               "    if (targetPanel) {\n" +
+               "        targetPanel.classList.add('active');\n" +
+               "    }\n" +
+               "    \n" +
+               "    // Add active class to clicked button\n" +
+               "    const targetButton = document.querySelector(`[data-tab=\"${tabId}\"]`);\n" +
+               "    if (targetButton) {\n" +
+               "        targetButton.classList.add('active');\n" +
+               "    }\n" +
+               "}\n" +
+               "\n" +
+               "// Enhanced report functionality\n" +
                "document.addEventListener('DOMContentLoaded', function() {\n" +
                "    // Add click handlers for expandable sections\n" +
                "    const groupCards = document.querySelectorAll('.vulnerability-group-card, .deprecation-group-card, .compatibility-group-card');\n" +
@@ -688,7 +849,7 @@ public class HtmlReportHandler implements ReportFormatHandler {
                "        }\n" +
                "    });\n" +
                "    \n" +
-               "    // Add animation on load\n" +
+               "    // Add smooth animations on load\n" +
                "    const sections = document.querySelectorAll('.analysis-section');\n" +
                "    sections.forEach((section, index) => {\n" +
                "        section.style.opacity = '0';\n" +
@@ -698,6 +859,18 @@ public class HtmlReportHandler implements ReportFormatHandler {
                "            section.style.opacity = '1';\n" +
                "            section.style.transform = 'translateY(0)';\n" +
                "        }, index * 200);\n" +
+               "    });\n" +
+               "    \n" +
+               "    // Add keyboard navigation for tabs\n" +
+               "    document.addEventListener('keydown', function(e) {\n" +
+               "        if (e.ctrlKey && e.key >= '1' && e.key <= '9') {\n" +
+               "            e.preventDefault();\n" +
+               "            const tabIndex = parseInt(e.key) - 1;\n" +
+               "            const buttons = document.querySelectorAll('.tab-button');\n" +
+               "            if (buttons[tabIndex]) {\n" +
+               "                buttons[tabIndex].click();\n" +
+               "            }\n" +
+               "        }\n" +
                "    });\n" +
                "});";
     }

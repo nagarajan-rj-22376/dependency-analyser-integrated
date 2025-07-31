@@ -71,15 +71,19 @@ public class ReportController {
     @PostMapping("/upload/{format}")
     public ResponseEntity<String> generateReportFromUpload(@PathVariable String format, @RequestParam("file") MultipartFile file) {
         try {
-            ReportFormat reportFormat;
+            // Validate format parameter (even though we generate both)
             try {
-                reportFormat = ReportFormat.valueOf(format.toUpperCase());
+                ReportFormat.valueOf(format.toUpperCase());
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().body("Invalid format. Supported formats: " + Arrays.toString(ReportFormat.values()));
             }
             
             FinalReport finalReport = analyzeUploadedFile(file);
-            reportGenerator.generateReport(finalReport, reportFormat, "reports/");
+            
+            // Always generate both HTML and JSON for the results page
+            reportGenerator.generateReport(finalReport, ReportFormat.HTML, "reports/");
+            reportGenerator.generateReport(finalReport, ReportFormat.JSON, "reports/");
+            
             return ResponseEntity.ok("Report generated successfully from uploaded file in reports/ directory");
         } catch (Exception e) {
             logger.error("Error generating report from upload", e);
@@ -110,8 +114,8 @@ public class ReportController {
         }
         
         String fileName = file.getOriginalFilename();
-        if (fileName == null || !fileName.endsWith(".zip")) {
-            throw new IllegalArgumentException("Only ZIP files are supported");
+        if (fileName == null || (!fileName.toLowerCase().endsWith(".zip") && !fileName.toLowerCase().endsWith(".war"))) {
+            throw new IllegalArgumentException("Only ZIP and WAR files are supported");
         }
 
         // Extract ZIP file to temporary directory

@@ -54,7 +54,7 @@ public class ApiCompatibilityAnalyzer implements ApiCompatibilityChecker {
             issue.put("className", targetClass);
             issue.put("methodName", methodName);
             issue.put("usageLocation", location);
-            issue.put("suggestedFix", "Check documentation for replacement API");
+            issue.put("suggestedFix", generateDeprecationFix(targetClass, methodName));
             issue.put("riskLevel", "MEDIUM");
             issue.put("impact", "Potential deprecation warning or future removal");
             issue.put("sourceType", "JAR");
@@ -86,7 +86,22 @@ public class ApiCompatibilityAnalyzer implements ApiCompatibilityChecker {
             issue.put("className", targetClass);
             issue.put("methodName", methodName);
             issue.put("usageLocation", location);
-            issue.put("suggestedFix", "Add JAXB dependency or migrate to java.util.Base64");
+            issue.put("suggestedFix", generateSuggestedFix(targetClass, methodName));
+            issue.put("riskLevel", "HIGH");
+            issue.put("impact", "ClassNotFoundException at runtime in JDK 11+");
+            issue.put("sourceType", "JAR");
+            
+            issues.add(issue);
+        }
+        
+        // Check for other Java version incompatibilities
+        if (targetClass.startsWith("sun.misc.BASE64") && isJdk11Plus()) {
+            Map<String, Object> issue = new HashMap<>();
+            issue.put("issueType", "CLASS_NOT_FOUND");
+            issue.put("className", targetClass);
+            issue.put("methodName", methodName);
+            issue.put("usageLocation", location);
+            issue.put("suggestedFix", generateSuggestedFix(targetClass, methodName));
             issue.put("riskLevel", "HIGH");
             issue.put("impact", "ClassNotFoundException at runtime in JDK 11+");
             issue.put("sourceType", "JAR");
@@ -112,5 +127,57 @@ public class ApiCompatibilityAnalyzer implements ApiCompatibilityChecker {
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+    
+    private String generateSuggestedFix(String targetClass, String methodName) {
+        // Generate context-specific suggested fixes based on the class and method
+        
+        if (targetClass.startsWith("javax.xml.bind")) {
+            if (methodName.contains("DatatypeConverter") || methodName.contains("printBase64Binary") || methodName.contains("parseBase64Binary")) {
+                return "Replace with java.util.Base64.getEncoder().encodeToString() and java.util.Base64.getDecoder().decode()";
+            } else if (methodName.contains("JAXBContext") || methodName.contains("Marshaller") || methodName.contains("Unmarshaller")) {
+                return "Add JAXB runtime dependency: <dependency><groupId>javax.xml.bind</groupId><artifactId>jaxb-api</artifactId><version>2.3.1</version></dependency>";
+            } else {
+                return "Add JAXB dependency or migrate to Jakarta XML Binding (jakarta.xml.bind)";
+            }
+        }
+        
+        if (targetClass.startsWith("sun.misc.BASE64")) {
+            return "Replace sun.misc.BASE64Encoder/Decoder with java.util.Base64.getEncoder() and java.util.Base64.getDecoder()";
+        }
+        
+        if (targetClass.startsWith("com.sun.xml")) {
+            return "Replace with standard Java XML APIs or add explicit dependency for internal Sun classes";
+        }
+        
+        if (targetClass.startsWith("org.apache.commons")) {
+            return "Ensure Apache Commons dependency is included in your build configuration";
+        }
+        
+        // Default fallback
+        return "Check class availability in target JDK version and update dependencies accordingly";
+    }
+    
+    private String generateDeprecationFix(String targetClass, String methodName) {
+        // Generate context-specific suggestions for deprecated API usage
+        
+        if (targetClass.contains("Date") && methodName.contains("getYear")) {
+            return "Replace java.util.Date.getYear() with java.time.LocalDate.getYear()";
+        }
+        
+        if (targetClass.contains("Calendar") && methodName.contains("getInstance")) {
+            return "Consider migrating to java.time.LocalDateTime or java.time.ZonedDateTime";
+        }
+        
+        if (targetClass.contains("Thread") && methodName.contains("stop")) {
+            return "Use Thread.interrupt() and proper thread coordination instead of deprecated Thread.stop()";
+        }
+        
+        if (targetClass.contains("URLEncoder") && methodName.contains("encode") && !methodName.contains("UTF-8")) {
+            return "Use URLEncoder.encode(string, StandardCharsets.UTF_8) to specify charset explicitly";
+        }
+        
+        // Default fallback
+        return String.format("Check %s.%s documentation for recommended replacement API", targetClass, methodName);
     }
 }

@@ -197,57 +197,8 @@
             display: none;
         }
 
-        .format-section {
+        .upload-section {
             margin-bottom: 32px;
-        }
-
-        .format-title {
-            color: #2d3748;
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 16px;
-            text-align: center;
-        }
-
-        .format-selector {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-        }
-
-        .format-btn {
-            padding: 16px 20px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            background: white;
-            color: #4a5568;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            min-width: 120px;
-        }
-
-        .format-name {
-            font-weight: 700;
-            font-size: 1rem;
-            margin-bottom: 4px;
-        }
-
-        .format-desc {
-            font-size: 0.8rem;
-            color: #718096;
-            font-weight: 400;
-        }
-
-        .format-btn:hover {
-            border-color: #667eea;
-            color: #667eea;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.15);
-        }
-
-        .format-btn:hover .format-desc {
-            color: #667eea;
         }
 
         .format-btn.active {
@@ -283,31 +234,16 @@
 <body>
     <div class="container">
         <h1>Dependency Analysis</h1>
-        <p class="subtitle">Upload your project ZIP file for comprehensive dependency analysis</p>
+        <p class="subtitle">Upload your project ZIP or WAR file for comprehensive dependency analysis</p>
         
         <div class="upload-area" onclick="document.getElementById('fileInput').click()">
             <div class="upload-icon">📦</div>
-            <div class="upload-text">Drop your ZIP file here</div>
+            <div class="upload-text">Drop your ZIP or WAR file here</div>
             <div class="upload-hint">or click to browse</div>
-            <input type="file" id="fileInput" accept=".zip" />
+            <input type="file" id="fileInput" accept=".zip,.war" />
         </div>
         
         <div class="selected-file" id="selectedFile"></div>
-        
-        <div class="format-section">
-            <h3 class="format-title">Select Report Type to Download</h3>
-            <div class="format-selector">
-                <div class="format-btn active" data-format="html" title="Interactive web report with visualizations">
-                    <div class="format-name">HTML</div>
-                    <div class="format-desc">Interactive Web Report</div>
-                </div>
-                <div class="format-btn" data-format="json" title="Structured data for integration with other tools">
-                    <div class="format-name">JSON</div>
-                    <div class="format-desc">Machine-Readable Data</div>
-                </div>
-                <!-- PDF format will be available in future versions -->
-            </div>
-        </div>
         
         <button class="analyze-btn" id="analyzeBtn" disabled>
             Analyze Dependencies
@@ -318,14 +254,12 @@
 
     <script>
         let selectedFile = null;
-        let selectedFormat = 'html';
         
         const fileInput = document.getElementById('fileInput');
         const uploadArea = document.querySelector('.upload-area');
         const selectedFileDiv = document.getElementById('selectedFile');
         const analyzeBtn = document.getElementById('analyzeBtn');
         const status = document.getElementById('status');
-        const formatBtns = document.querySelectorAll('.format-btn');
         
         // File selection
         fileInput.addEventListener('change', handleFileSelect);
@@ -349,15 +283,6 @@
             }
         });
         
-        // Format selection
-        formatBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                formatBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                selectedFormat = btn.dataset.format;
-            });
-        });
-        
         // Analysis
         analyzeBtn.addEventListener('click', analyzeFile);
         
@@ -369,8 +294,9 @@
         }
         
         function handleFile(file) {
-            if (!file.name.endsWith('.zip')) {
-                showStatus('Please select a ZIP file', 'error');
+            const fileName = file.name.toLowerCase();
+            if (!fileName.endsWith('.zip') && !fileName.endsWith('.war')) {
+                showStatus('Please select a ZIP or WAR file', 'error');
                 return;
             }
             
@@ -392,46 +318,43 @@
             formData.append('file', selectedFile);
             
             try {
-                const response = await fetch(`http://localhost:8080/api/reports/upload/${selectedFormat}`, {
+                // Always generate HTML report initially
+                const response = await fetch('/api/reports/upload/html', {
                     method: 'POST',
                     body: formData
                 });
                 
                 if (response.ok) {
                     const result = await response.text();
-                    showStatus('Analysis complete!', 'success');
+                    console.log('Analysis successful, result:', result);
+                    showStatus('Analysis complete! Redirecting...', 'success');
                     
-                    // Generate download link
-                    const downloadBtn = document.createElement('a');
-                    downloadBtn.className = 'download-btn';
-                    downloadBtn.textContent = `Download ${selectedFormat.toUpperCase()} Report`;
-                    downloadBtn.href = '#';
-                    downloadBtn.onclick = downloadReport;
-                    
-                    status.appendChild(document.createElement('br'));
-                    status.appendChild(downloadBtn);
+                    // Try multiple redirect approaches
+                    try {
+                        console.log('Attempting redirect...');
+                        setTimeout(() => {
+                            console.log('Executing redirect now...');
+                            const resultsUrl = `${window.location.origin}/results.html?file=dependency-analysis-report`;
+                            console.log('Redirecting to:', resultsUrl);
+                            window.location.href = resultsUrl;
+                        }, 1500);
+                    } catch (redirectError) {
+                        console.error('Redirect failed:', redirectError);
+                        showStatus('Analysis complete! Please manually navigate to results page.', 'success');
+                    }
                 } else {
                     throw new Error(`Analysis failed: ${response.status}`);
                 }
             } catch (error) {
-                showStatus(`Error: ${error.message}`, 'error');
-            } finally {
+                console.error('Analysis error:', error);
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    showStatus('Network error: Please ensure you\'re accessing the page from http://localhost:8081', 'error');
+                } else {
+                    showStatus(`Error: ${error.message}`, 'error');
+                }
                 analyzeBtn.innerHTML = 'Analyze Dependencies';
                 analyzeBtn.disabled = false;
             }
-        }
-        
-        function downloadReport() {
-            // Use the actual filename generated by the system
-            const filename = `dependency-analysis-report.${selectedFormat}`;
-            
-            // Create a temporary link to download the report
-            const link = document.createElement('a');
-            link.href = `/reports/${filename}`;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         }
         
         function showStatus(message, type) {

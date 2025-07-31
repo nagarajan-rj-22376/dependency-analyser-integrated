@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Results - Dependency Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-width: 180px;
+            text-align: center;
+        }
+
+        .btn-download {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-download:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background: white;
+            min-width: 180px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            z-index: 1000;
+            top: 100%;
+            margin-top: 2px;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+        }
+
+        .dropdown-content a {
+            color: #333;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            margin: 4px;
+            transition: background-color 0.15s ease;
+        }
+
+        .dropdown-content a:hover {
+            background: #f8f9fa;
+        }
+
+        .dropdown:hover .dropdown-content,
+        .dropdown-content:hover {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        /* Add hover area to prevent dropdown from disappearing */
+        .dropdown::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            height: 10px;
+            z-index: 999;
+        }
+
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        /* Override report styles to fit in the new layout */
+        .report-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .report-content .container {
+            padding: 0;
+            background: none;
+            box-shadow: none;
+            border-radius: 0;
+            max-width: none;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .header-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>📊 Dependency Analysis Results</h1>
+            <div class="header-buttons">
+                <div class="dropdown">
+                    <button class="btn btn-download">
+                        📥 Download Report ▼
+                    </button>
+                    <div class="dropdown-content">
+                        <a href="#" onclick="downloadReport('html')">📄 HTML Report</a>
+                        <a href="#" onclick="downloadReport('json')">📋 JSON Data</a>
+                    </div>
+                </div>
+                <a href="/" class="btn btn-download">
+                    🔄 Analyze Another Project
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading analysis results...</p>
+        </div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="reportContent" class="report-content" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const filename = urlParams.get('file') || 'dependency-analysis-report';
+        
+        async function loadReport() {
+            try {
+                const response = await fetch(`/reports/${filename}.html`);
+                if (!response.ok) {
+                    throw new Error(`Failed to load report: ${response.status}`);
+                }
+                
+                const htmlContent = await response.text();
+                
+                // Create a temporary div to parse the HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = htmlContent;
+                
+                // Extract just the body content (skip the original HTML structure)
+                const bodyContent = tempDiv.querySelector('body');
+                if (bodyContent) {
+                    document.getElementById('reportContent').innerHTML = bodyContent.innerHTML;
+                } else {
+                    document.getElementById('reportContent').innerHTML = htmlContent;
+                }
+                
+                // Hide loading, show content
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('reportContent').style.display = 'block';
+                
+                // Remove any existing headers from the loaded content to avoid duplication
+                const existingHeaders = document.querySelectorAll('#reportContent .header, #reportContent header');
+                existingHeaders.forEach(header => header.remove());
+                
+                // Execute any scripts that were in the loaded content to ensure tabs work
+                const scripts = tempDiv.querySelectorAll('script');
+                scripts.forEach(script => {
+                    if (script.src) {
+                        // For external scripts
+                        const newScript = document.createElement('script');
+                        newScript.src = script.src;
+                        document.body.appendChild(newScript);
+                    } else if (script.textContent) {
+                        // For inline scripts
+                        const newScript = document.createElement('script');
+                        newScript.textContent = script.textContent;
+                        document.body.appendChild(newScript);
+                    }
+                });
+                
+                // Also copy any CSS from the head
+                const styles = tempDiv.querySelectorAll('style');
+                styles.forEach(style => {
+                    const newStyle = document.createElement('style');
+                    newStyle.textContent = style.textContent;
+                    document.head.appendChild(newStyle);
+                });
+                
+            } catch (error) {
+                console.error('Error loading report:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').innerHTML = `
+                    <h3>Error Loading Report</h3>
+                    <p>${error.message}</p>
+                    <p>Please try <a href="/">analyzing another project</a> or contact support.</p>
+                `;
+            }
+        }
+        
+        function downloadReport(format) {
+            const reportFilename = `${filename}.${format}`;
+            
+            // Create a temporary link to download the report
+            const link = document.createElement('a');
+            link.href = `/reports/${reportFilename}`;
+            link.download = reportFilename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        // Load report when page loads
+        document.addEventListener('DOMContentLoaded', loadReport);
+    </script>
+</body>
+</html>

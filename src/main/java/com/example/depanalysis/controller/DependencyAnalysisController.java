@@ -33,9 +33,10 @@ public class DependencyAnalysisController {
         Path tempDir = null;
         try {
             // Validate the file
-            if (file.isEmpty() || !Objects.requireNonNull(file.getOriginalFilename()).endsWith(".zip")) {
+            String originalFilename = Objects.requireNonNull(file.getOriginalFilename()).toLowerCase();
+            if (file.isEmpty() || (!originalFilename.endsWith(".zip") && !originalFilename.endsWith(".war"))) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("Uploaded file must be a non-empty ZIP archive.");
+                        .body("Uploaded file must be a non-empty ZIP or WAR archive.");
             }
 
             // Extract ZIP to temp dir
