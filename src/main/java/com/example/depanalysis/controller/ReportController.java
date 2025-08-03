@@ -8,7 +8,9 @@ import com.example.depanalysis.util.ZipExtractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,10 +18,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/reports")
 public class ReportController {
 
     private static final Logger logger = LoggerFactory.getLogger(ReportController.class);
@@ -30,7 +32,38 @@ public class ReportController {
     @Autowired
     private AnalysisOrchestrator analysisOrchestrator;
 
-    @GetMapping("/sample/{format}")
+    // Serve HTML reports directly
+    @GetMapping("/reports/{filename:.+}")
+    public ResponseEntity<String> getReport(@PathVariable String filename) {
+        try {
+            Path reportPath = Paths.get("reports", filename);
+            
+            if (!Files.exists(reportPath)) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            String content = Files.readString(reportPath);
+            
+            HttpHeaders headers = new HttpHeaders();
+            if (filename.endsWith(".html")) {
+                headers.setContentType(MediaType.TEXT_HTML);
+            } else if (filename.endsWith(".json")) {
+                headers.setContentType(MediaType.APPLICATION_JSON);
+            } else {
+                headers.setContentType(MediaType.TEXT_PLAIN);
+            }
+            
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(content);
+                    
+        } catch (IOException e) {
+            logger.error("Error reading report file: {}", filename, e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/api/reports/sample/{format}")
     public ResponseEntity<String> generateSampleReport(@PathVariable String format) {
         try {
             FinalReport sampleReport = createSampleReport();
@@ -49,7 +82,7 @@ public class ReportController {
         }
     }
 
-    @GetMapping("/sample/all")
+    @GetMapping("/api/reports/sample/all")
     public ResponseEntity<String> generateSampleReports() {
         try {
             FinalReport sampleReport = createSampleReport();
@@ -62,13 +95,13 @@ public class ReportController {
         }
     }
 
-    @GetMapping("/formats")
+    @GetMapping("/api/reports/formats")
     public ResponseEntity<List<String>> getSupportedFormats() {
         return ResponseEntity.ok(reportGenerator.getSupportedFormats());
     }
 
     // New endpoints for uploading files and generating reports
-    @PostMapping("/upload/{format}")
+    @PostMapping("/api/reports/upload/{format}")
     public ResponseEntity<String> generateReportFromUpload(@PathVariable String format, @RequestParam("file") MultipartFile file) {
         try {
             // Validate format parameter (even though we generate both)
@@ -92,7 +125,7 @@ public class ReportController {
         }
     }
 
-    @PostMapping("/upload/all")
+    @PostMapping("/api/reports/upload/all")
     public ResponseEntity<String> generateAllReportsFromUpload(@RequestParam("file") MultipartFile file) {
         try {
             FinalReport finalReport = analyzeUploadedFile(file);

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple JAR Comparison Test</title>
+</head>
+<body>
+    <h1>Simple JAR Comparison Test</h1>
+    <p>This is a simple test to verify if the results page works directly.</p>
+    
+    <h2>Manual Tests:</h2>
+    
+    <h3>1. Test localStorage Content</h3>
+    <button onclick="checkLocalStorage()">Check localStorage</button>
+    <div id="storageContent"></div>
+    
+    <h3>2. Direct Navigation Test</h3>
+    <button onclick="testDirectNavigation()">Test Direct Navigation</button>
+    
+    <h3>3. Clear Storage and Navigate</h3>
+    <button onclick="clearAndNavigate()">Clear Storage & Navigate</button>
+    
+    <h3>4. Test with Sample Data</h3>
+    <button onclick="testWithSampleData()">Store Sample Data & Navigate</button>
+    
+    <script>
+        function checkLocalStorage() {
+            const data = localStorage.getItem('jarComparisonResult');
+            const div = document.getElementById('storageContent');
+            if (data) {
+                div.innerHTML = `<h4>Found localStorage data:</h4><pre>${data}</pre>`;
+            } else {
+                div.innerHTML = '<h4>No localStorage data found</h4>';
+            }
+        }
+        
+        function testDirectNavigation() {
+            console.log('Testing direct navigation...');
+            window.location.href = 'jar-comparison-results.html';
+        }
+        
+        function clearAndNavigate() {
+            localStorage.removeItem('jarComparisonResult');
+            console.log('Cleared localStorage, navigating...');
+            window.location.href = 'jar-comparison-results.html';
+        }
+        
+        function testWithSampleData() {
+            const sampleData = {
+                "summary": {
+                    "totalPackages": 19,
+                    "packagesAdded": 7,
+                    "packagesRemoved": 0,
+                    "packagesModified": 24,
+                    "totalClasses": 304,
+                    "classesAdded": 30,
+                    "classesRemoved": 0,
+                    "classesModified": 0,
+                    "totalMethods": 0,
+                    "methodsAdded": 0,
+                    "methodsRemoved": 0,
+                    "methodsModified": 0
+                },
+                "oldJarName": "commons-collections4-4.3.jar",
+                "newJarName": "commons-collections-3.2.jar",
+                "packageLevel": [],
+                "classLevel": []
+            };
+            
+            localStorage.setItem('jarComparisonResult', JSON.stringify(sampleData));
+            console.log('Stored sample data, navigating...');
+            window.location.href = 'jar-comparison-results.html';
+        }
+    </script>
+</body>
+</html>

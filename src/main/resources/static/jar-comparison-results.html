@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAR Comparison Results</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .comparison-info {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding: 16px;
+            background: #f7fafc;
+            border-radius: 12px;
+        }
+
+        .jar-name {
+            font-weight: 600;
+            color: #4a5568;
+            padding: 8px 16px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .vs-text {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .summary-cards {
+            margin-bottom: 32px;
+        }
+
+        .summary-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .summary-row-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 12px;
+            padding-left: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .summary-card .number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .summary-card .label {
+            font-size: 0.9rem;
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .summary-card.added .number { color: #38a169; }
+        .summary-card.removed .number { color: #e53e3e; }
+        .summary-card.modified .number { color: #3182ce; }
+        .summary-card.total .number { color: #667eea; }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #718096;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .change-item {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .change-item.added { border-left-color: #38a169; }
+        .change-item.removed { border-left-color: #e53e3e; }
+        .change-item.modified { border-left-color: #3182ce; }
+
+        .change-item.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .change-item.clickable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .change-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .change-title {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 1.1rem;
+        }
+
+        .change-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .change-badge.added { background: #c6f6d5; color: #22543d; }
+        .change-badge.removed { background: #fed7d7; color: #742a2a; }
+        .change-badge.modified { background: #bee3f8; color: #2a4365; }
+
+        .change-details {
+            color: #4a5568;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .back-button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #718096;
+        }
+
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        /* Diff View Styles */
+        .diff-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .diff-modal.active {
+            display: flex;
+        }
+
+        .diff-container {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 90%;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .diff-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .diff-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .diff-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .diff-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .diff-content {
+            max-height: calc(90vh - 80px);
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .diff-section {
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .diff-section:last-child {
+            border-bottom: none;
+        }
+
+        .diff-section-header {
+            background: #f7fafc;
+            padding: 12px 24px;
+            font-weight: 600;
+            color: #2d3748;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .diff-line {
+            display: flex;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .diff-line:last-child {
+            border-bottom: none;
+        }
+
+        .line-number {
+            background: #f8fafc;
+            color: #718096;
+            padding: 4px 12px;
+            min-width: 60px;
+            text-align: right;
+            border-right: 1px solid #e2e8f0;
+            user-select: none;
+        }
+
+        .line-content {
+            flex: 1;
+            padding: 4px 16px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .diff-line.added {
+            background: #f0fff4;
+        }
+
+        .diff-line.added .line-number {
+            background: #c6f6d5;
+            color: #276749;
+        }
+
+        .diff-line.added .line-content {
+            background: #f0fff4;
+            color: #276749;
+        }
+
+        .diff-line.removed {
+            background: #fff5f5;
+        }
+
+        .diff-line.removed .line-number {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .diff-line.removed .line-content {
+            background: #fff5f5;
+            color: #c53030;
+        }
+
+        .diff-line.context {
+            background: #ffffff;
+        }
+
+        .diff-line.context .line-content {
+            color: #4a5568;
+        }
+
+        /* Metadata-specific color differentiation */
+        .diff-line.access-modifier {
+            background: #fffbeb;
+            border-left: 3px solid #f59e0b;
+        }
+
+        .diff-line.access-modifier .line-number {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .diff-line.access-modifier .line-content {
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .diff-line.interface-change {
+            background: #f0f9ff;
+            border-left: 3px solid #0ea5e9;
+        }
+
+        .diff-line.interface-change .line-number {
+            background: #bae6fd;
+            color: #0c4a6e;
+        }
+
+        .diff-line.interface-change .line-content {
+            background: #f0f9ff;
+            color: #0c4a6e;
+        }
+
+        .diff-line.annotation-change {
+            background: #fdf4ff;
+            border-left: 3px solid #c084fc;
+        }
+
+        .diff-line.annotation-change .line-number {
+            background: #e9d5ff;
+            color: #7c3aed;
+        }
+
+        .diff-line.annotation-change .line-content {
+            background: #fdf4ff;
+            color: #7c3aed;
+        }
+
+        .diff-line.method-signature {
+            background: #f0fdf4;
+            border-left: 3px solid #22c55e;
+        }
+
+        .diff-line.method-signature.removed {
+            background: #fef2f2;
+            border-left: 3px solid #ef4444;
+        }
+
+        .diff-line.method-signature .line-number {
+            background: #bbf7d0;
+            color: #15803d;
+        }
+
+        .diff-line.method-signature.removed .line-number {
+            background: #fecaca;
+            color: #dc2626;
+        }
+
+        .diff-line.method-signature .line-content {
+            background: #f0fdf4;
+            color: #15803d;
+            font-weight: 500;
+        }
+
+        .diff-line.method-signature.removed .line-content {
+            background: #fef2f2;
+            color: #dc2626;
+            font-weight: 500;
+        }
+
+        .diff-line.field-change {
+            background: #fdf2f8;
+            border-left: 3px solid #ec4899;
+        }
+
+        .diff-line.field-change .line-number {
+            background: #fce7f3;
+            color: #be185d;
+        }
+
+        .diff-line.field-change .line-content {
+            background: #fdf2f8;
+            color: #be185d;
+        }
+
+        /* Enhanced visual effects for metadata changes */
+        .diff-line.access-modifier:hover,
+        .diff-line.interface-change:hover,
+        .diff-line.annotation-change:hover,
+        .diff-line.method-signature:hover,
+        .diff-line.field-change:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transform: translateX(2px);
+            transition: all 0.2s ease;
+        }
+
+        /* Metadata change indicators */
+        .diff-line.access-modifier::before {
+            content: "🔐";
+            position: absolute;
+            left: -20px;
+            font-size: 0.8rem;
+        }
+
+        .diff-line.interface-change::before {
+            content: "🔗";
+            position: absolute;
+            left: -20px;
+            font-size: 0.8rem;
+        }
+
+        .diff-line.annotation-change::before {
+            content: "📝";
+            position: absolute;
+            left: -20px;
+            font-size: 0.8rem;
+        }
+
+        .diff-line.method-signature::before {
+            content: "⚡";
+            position: absolute;
+            left: -20px;
+            font-size: 0.8rem;
+        }
+
+        .diff-line.field-change::before {
+            content: "🏗️";
+            position: absolute;
+            left: -20px;
+            font-size: 0.8rem;
+        }
+
+        .diff-line {
+            position: relative;
+            margin-left: 20px;
+        }
+
+        /* Bytecode-specific styling */
+        .bytecode-section {
+            background: #1a1a1a;
+            color: #e5e5e5;
+            border-radius: 6px;
+            margin: 12px 0;
+            overflow: hidden;
+        }
+
+        .bytecode-header {
+            background: #2d2d2d;
+            color: #ffffff;
+            padding: 8px 16px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #404040;
+        }
+
+        .bytecode-content {
+            padding: 12px 16px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            white-space: pre;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .bytecode-instruction {
+            color: #87CEEB;
+        }
+
+        .bytecode-comment {
+            color: #90EE90;
+        }
+
+        .bytecode-number {
+            color: #FFA500;
+        }
+
+        .diff-stats {
+            background: #f7fafc;
+            padding: 16px 24px;
+            display: flex;
+            gap: 24px;
+            font-size: 0.9rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-added {
+            color: #38a169;
+        }
+
+        .stat-removed {
+            color: #e53e3e;
+        }
+
+        .stat-modified {
+            color: #3182ce;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .comparison-info {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .summary-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .tabs {
+                font-size: 0.9rem;
+            }
+
+            .tab {
+                padding: 10px 16px;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 48px;
+            color: #718096;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e2e8f0;
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="back-button" onclick="window.location.href='index.html'">
+            ← Back to Home
+        </button>
+
+        <div class="header">
+            <h1>JAR Comparison Results</h1>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading comparison results...</p>
+        </div>
+
+        <div id="results" style="display: none;">
+            <div class="comparison-info">
+                <span class="jar-name" id="oldJarName">old.jar</span>
+                <span class="vs-text">VS</span>
+                <span class="jar-name" id="newJarName">new.jar</span>
+            </div>
+
+            <div class="summary-cards">
+                <!-- Package Summary Row -->
+                <div class="summary-row-title">📦 Package Analysis</div>
+                <div class="summary-row">
+                    <div class="summary-card total">
+                        <div class="number" id="totalPackages">0</div>
+                        <div class="label">Total Packages</div>
+                    </div>
+                    <div class="summary-card added">
+                        <div class="number" id="packagesAdded">0</div>
+                        <div class="label">Packages Added</div>
+                    </div>
+                    <div class="summary-card removed">
+                        <div class="number" id="packagesRemoved">0</div>
+                        <div class="label">Packages Removed</div>
+                    </div>
+                    <div class="summary-card modified">
+                        <div class="number" id="packagesModified">0</div>
+                        <div class="label">Packages Modified</div>
+                    </div>
+                </div>
+                
+                <!-- Class Summary Row -->
+                <div class="summary-row-title">🏗️ Class Analysis</div>
+                <div class="summary-row">
+                    <div class="summary-card total">
+                        <div class="number" id="totalClasses">0</div>
+                        <div class="label">Total Classes</div>
+                    </div>
+                    <div class="summary-card added">
+                        <div class="number" id="classesAdded">0</div>
+                        <div class="label">Classes Added</div>
+                    </div>
+                    <div class="summary-card removed">
+                        <div class="number" id="classesRemoved">0</div>
+                        <div class="label">Classes Removed</div>
+                    </div>
+                    <div class="summary-card modified">
+                        <div class="number" id="classesModified">0</div>
+                        <div class="label">Classes Modified</div>
+                    </div>
+                </div>
+                
+                <!-- Method Summary Row -->
+                <div class="summary-row-title">⚙️ Method Analysis</div>
+                <div class="summary-row">
+                    <div class="summary-card total">
+                        <div class="number" id="totalMethods">0</div>
+                        <div class="label">Total Methods</div>
+                    </div>
+                    <div class="summary-card added">
+                        <div class="number" id="methodsAdded">0</div>
+                        <div class="label">Methods Added</div>
+                    </div>
+                    <div class="summary-card removed">
+                        <div class="number" id="methodsRemoved">0</div>
+                        <div class="label">Methods Removed</div>
+                    </div>
+                    <div class="summary-card modified">
+                        <div class="number" id="methodsModified">0</div>
+                        <div class="label">Methods Modified</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" data-tab="project">Project Level</button>
+                <button class="tab" data-tab="package">Package Level</button>
+                <button class="tab" data-tab="class">Class Level</button>
+                <button class="tab" data-tab="method">Method Level</button>
+            </div>
+
+            <div id="project-content" class="tab-content active">
+                <div id="projectChanges"></div>
+            </div>
+
+            <div id="package-content" class="tab-content">
+                <div id="packageChanges"></div>
+            </div>
+
+            <div id="class-content" class="tab-content">
+                <div id="classChanges"></div>
+            </div>
+
+            <div id="method-content" class="tab-content">
+                <div id="methodChanges"></div>
+            </div>
+        </div>
+
+        <div id="error" style="display: none;" class="empty-state">
+            <div class="icon">⚠️</div>
+            <h3>No Comparison Data Found</h3>
+            <p>Please go back to the home page and perform a new JAR comparison.</p>
+        </div>
+    </div>
+
+    <!-- Diff Modal -->
+    <div id="diffModal" class="diff-modal">
+        <div class="diff-container">
+            <div class="diff-header">
+                <div class="diff-title" id="diffTitle">Class Comparison</div>
+                <button class="diff-close" onclick="closeDiffModal()">&times;</button>
+            </div>
+            <div class="diff-legend" style="background: #f8fafc; padding: 12px 24px; border-bottom: 1px solid #e2e8f0; font-size: 0.85rem;">
+                <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center;">
+                    <div style="font-weight: 600; color: #374151;">Color Legend:</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 12px; height: 12px; background: #22c55e; border-radius: 2px;"></div>
+                        <span style="color: #15803d;">Methods</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 12px; height: 12px; background: #f59e0b; border-radius: 2px;"></div>
+                        <span style="color: #92400e;">Access Modifiers</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 12px; height: 12px; background: #0ea5e9; border-radius: 2px;"></div>
+                        <span style="color: #0c4a6e;">Interfaces</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 12px; height: 12px; background: #c084fc; border-radius: 2px;"></div>
+                        <span style="color: #7c3aed;">Annotations</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 12px; height: 12px; background: #ec4899; border-radius: 2px;"></div>
+                        <span style="color: #be185d;">Fields</span>
+                    </div>
+                </div>
+            </div>
+            <div class="diff-stats" id="diffStats"></div>
+            <div class="diff-controls" style="background: #f8fafc; padding: 8px 24px; border-bottom: 1px solid #e2e8f0;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="showBytecode" onchange="toggleBytecodeView()" style="margin: 0;">
+                    <span style="font-size: 0.9rem; color: #374151;">🔍 Show ASM Bytecode</span>
+                </label>
+            </div>
+            <div class="diff-content" id="diffContent"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab switching functionality
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const targetTab = tab.getAttribute('data-tab');
+                    
+                    // Update active tab
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Update active content
+                    tabContents.forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(targetTab + '-content').classList.add('active');
+                });
+            });
+
+            // Load comparison results
+            loadComparisonResults();
+        });
+
+        function loadComparisonResults() {
+            try {
+                console.log('Loading comparison results...');
+                // Try both sessionStorage and localStorage for backward compatibility
+                let resultData = sessionStorage.getItem('jarComparisonResult') || localStorage.getItem('jarComparisonResult');
+                console.log('Raw result data:', resultData);
+                if (!resultData) {
+                    console.log('No result data found in storage');
+                    showError();
+                    return;
+                }
+
+                let result;
+                try {
+                    // First try to parse as regular JSON (for backward compatibility)
+                    result = JSON.parse(resultData);
+                } catch (jsonError) {
+                    console.log('Not regular JSON, attempting base64 decode...');
+                    try {
+                        // Try to decode as base64 (new format)
+                        const decodedData = atob(resultData);
+                        result = JSON.parse(decodedData);
+                        console.log('Successfully decoded base64 data');
+                    } catch (base64Error) {
+                        console.error('Failed to parse both JSON and base64:', jsonError, base64Error);
+                        showError();
+                        return;
+                    }
+                }
+                
+                console.log('Parsed comparison result:', result); // Debug log
+                console.log('Summary:', result.summary);
+                displayResults(result);
+            } catch (error) {
+                console.error('Error loading comparison results:', error);
+                showError();
+            }
+        }
+
+        function showError() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+        }
+
+        function displayResults(result) {
+            console.log('=== DISPLAY RESULTS DEBUG ===');
+            console.log('Displaying results:', result); // Debug log
+            document.getElementById('loading').style.display = 'none';
+            
+            // Check if files are identical
+            const areIdentical = isIdenticalFiles(result);
+            console.log('Are files identical?', areIdentical);
+            console.log('Summary data for identical check:', result.summary);
+            
+            if (areIdentical) {
+                console.log('*** SHOWING IDENTICAL FILES MESSAGE ***');
+                showIdenticalFilesMessage(result);
+                return;
+            }
+            
+            console.log('*** SHOWING REGULAR RESULTS ***');
+            document.getElementById('results').style.display = 'block';
+
+            // Update jar names
+            document.getElementById('oldJarName').textContent = result.oldJarName || 'old.jar';
+            document.getElementById('newJarName').textContent = result.newJarName || 'new.jar';
+
+            // Update summary cards
+            if (result.summary) {
+                console.log('Summary data:', result.summary); // Debug log
+                
+                // Package summary
+                document.getElementById('totalPackages').textContent = result.summary.totalPackages || 0;
+                document.getElementById('packagesAdded').textContent = result.summary.packagesAdded || 0;
+                document.getElementById('packagesRemoved').textContent = result.summary.packagesRemoved || 0;
+                document.getElementById('packagesModified').textContent = result.summary.packagesModified || 0;
+                
+                // Class summary
+                document.getElementById('totalClasses').textContent = result.summary.totalClasses || 0;
+                document.getElementById('classesAdded').textContent = result.summary.classesAdded || 0;
+                document.getElementById('classesRemoved').textContent = result.summary.classesRemoved || 0;
+                document.getElementById('classesModified').textContent = result.summary.classesModified || 0;
+                
+                // Method summary
+                document.getElementById('totalMethods').textContent = result.summary.totalMethods || 0;
+                document.getElementById('methodsAdded').textContent = result.summary.methodsAdded || 0;
+                document.getElementById('methodsRemoved').textContent = result.summary.methodsRemoved || 0;
+                document.getElementById('methodsModified').textContent = result.summary.methodsModified || 0;
+            }
+
+            // Display different levels of changes
+            console.log('Package level changes:', result.packageLevel ? result.packageLevel.length : 0); // Debug log
+            console.log('Class level changes:', result.classLevel ? result.classLevel.length : 0); // Debug log
+            displayProjectChanges(result.projectLevel);
+            displayPackageChanges(result.packageLevel);
+            displayClassChanges(result.classLevel);
+            displayMethodChanges(result.methodLevel);
+        }
+
+        function displayProjectChanges(projectLevel) {
+            const container = document.getElementById('projectChanges');
+            
+            if (!projectLevel || (!projectLevel.manifestChanges && !projectLevel.metadataChanges)) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">📄</div><p>No project-level changes detected</p></div>';
+                return;
+            }
+
+            let html = '';
+
+            if (projectLevel.manifestChanges && projectLevel.manifestChanges !== 'No manifest changes') {
+                html += `
+                    <div class="change-item modified">
+                        <div class="change-header">
+                            <span class="change-title">Manifest Changes</span>
+                            <span class="change-badge modified">Modified</span>
+                        </div>
+                        <div class="change-details">${projectLevel.manifestChanges}</div>
+                    </div>
+                `;
+            }
+
+            if (projectLevel.metadataChanges && Object.keys(projectLevel.metadataChanges).length > 0) {
+                html += `
+                    <div class="change-item modified">
+                        <div class="change-header">
+                            <span class="change-title">Metadata Changes</span>
+                            <span class="change-badge modified">Modified</span>
+                        </div>
+                        <div class="change-details">
+                `;
+                
+                Object.entries(projectLevel.metadataChanges).forEach(([key, value]) => {
+                    html += `<div><strong>${key}:</strong> ${value}</div>`;
+                });
+                
+                html += '</div></div>';
+            }
+
+            container.innerHTML = html || '<div class="empty-state"><div class="icon">📄</div><p>No project-level changes detected</p></div>';
+        }
+
+        function displayPackageChanges(packageLevel) {
+            const container = document.getElementById('packageChanges');
+            
+            if (!packageLevel || packageLevel.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">📦</div><p>No package-level changes detected</p></div>';
+                return;
+            }
+
+            let html = '';
+            packageLevel.forEach(pkg => {
+                const changeType = pkg.changeType.toLowerCase();
+                html += `
+                    <div class="change-item ${changeType}">
+                        <div class="change-header">
+                            <span class="change-title">${pkg.packageName}</span>
+                            <span class="change-badge ${changeType}">${pkg.changeType}</span>
+                        </div>
+                        <div class="change-details">
+                            Class count: ${pkg.classCount || 0}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function displayClassChanges(classLevel) {
+            const container = document.getElementById('classChanges');
+            
+            if (!classLevel || classLevel.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">🏗️</div><p>No class-level changes detected</p></div>';
+                return;
+            }
+
+            let html = '';
+            classLevel.forEach((cls, index) => {
+                const changeType = cls.changeType.toLowerCase();
+                html += `
+                    <div class="change-item ${changeType} clickable" onclick="showClassDiff(${index}, '${cls.className}', '${changeType}')">
+                        <div class="change-header">
+                            <span class="change-title">${cls.className}</span>
+                            <span class="change-badge ${changeType}">${cls.changeType}</span>
+                        </div>
+                        <div class="change-details">
+                            Package: ${cls.packageName || 'Unknown'}
+                            <div style="font-size: 0.9rem; color: #718096; margin-top: 4px;">
+                                Click to view detailed diff
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            
+            // Store class data for diff viewing
+            window.classLevelData = classLevel;
+        }
+
+        function displayMethodChanges(methodLevel) {
+            const container = document.getElementById('methodChanges');
+            
+            if (!methodLevel || methodLevel.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">⚙️</div><p>No method-level changes detected</p></div>';
+                return;
+            }
+
+            let html = '';
+            methodLevel.forEach(method => {
+                const changeType = method.changeType.toLowerCase();
+                html += `
+                    <div class="change-item ${changeType}">
+                        <div class="change-header">
+                            <span class="change-title">${method.className}.${method.methodName}</span>
+                            <span class="change-badge ${changeType}">${method.changeType}</span>
+                        </div>
+                        <div class="change-details">
+                            ${method.oldSignature ? `Old: ${method.oldSignature}<br>` : ''}
+                            ${method.newSignature ? `New: ${method.newSignature}` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function isIdenticalFiles(result) {
+            // Check if all meaningful change counts are zero (indicating identical files)
+            // Note: Backend currently sets classesModified and all method counts to 0
+            // So we only check the fields that are actually populated
+            if (!result.summary) {
+                console.log('No summary found - treating as non-identical');
+                return false;
+            }
+            
+            console.log('Checking identical files with summary values:');
+            console.log('packagesAdded:', result.summary.packagesAdded);
+            console.log('packagesRemoved:', result.summary.packagesRemoved);
+            console.log('packagesModified:', result.summary.packagesModified);
+            console.log('classesAdded:', result.summary.classesAdded);
+            console.log('classesRemoved:', result.summary.classesRemoved);
+            
+            const isIdentical = result.summary.packagesAdded === 0 && 
+                               result.summary.packagesRemoved === 0 && 
+                               result.summary.packagesModified === 0 &&
+                               result.summary.classesAdded === 0 && 
+                               result.summary.classesRemoved === 0;
+                               // Note: Not checking classesModified, methodsAdded, methodsRemoved, methodsModified
+                               // as these are currently always set to 0 by the backend
+            
+            console.log('Final isIdentical result:', isIdentical);
+            return isIdentical;
+        }
+
+        function showIdenticalFilesMessage(result) {
+            const container = document.querySelector('.container');
+            container.innerHTML = `
+                <div class="header">
+                    <h1>JAR Comparison Results</h1>
+                </div>
+                
+                <div class="comparison-info">
+                    <div class="jar-info">
+                        <span class="jar-label">Old JAR:</span>
+                        <span class="jar-name">${result.oldJarName || 'old.jar'}</span>
+                    </div>
+                    <div class="vs">vs</div>
+                    <div class="jar-info">
+                        <span class="jar-label">New JAR:</span>
+                        <span class="jar-name">${result.newJarName || 'new.jar'}</span>
+                    </div>
+                </div>
+
+                <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #e8f5e8, #f0f8f0); border-radius: 16px; margin: 32px 0;">
+                    <div style="font-size: 4rem; margin-bottom: 20px;">✅</div>
+                    <h2 style="color: #2d5016; font-size: 2rem; margin-bottom: 16px;">Files Are Identical</h2>
+                    <p style="color: #5a7c65; font-size: 1.2rem; margin-bottom: 8px;">The two JAR files you uploaded are exactly the same.</p>
+                    <p style="color: #5a7c65; font-size: 1rem;">No differences were found between the files.</p>
+                </div>
+
+                <div style="text-align: center; margin-top: 32px;">
+                    <button onclick="window.location.href='/jar-comparison.html'" 
+                            style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; 
+                                   padding: 12px 32px; border-radius: 8px; font-size: 1rem; cursor: pointer; 
+                                   transition: transform 0.2s;">
+                        Compare Different Files
+                    </button>
+                </div>
+            `;
+        }
+
+        function showClassDiff(classIndex, className, changeType) {
+            if (!window.classLevelData || !window.classLevelData[classIndex]) {
+                console.error('Class data not found for index:', classIndex);
+                return;
+            }
+
+            const classData = window.classLevelData[classIndex];
+            
+            // Set modal title
+            document.getElementById('diffTitle').textContent = `${className} - ${changeType.toUpperCase()}`;
+            
+            // Generate diff content
+            generateClassDiff(classData, changeType);
+            
+            // Show modal
+            document.getElementById('diffModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDiffModal() {
+            document.getElementById('diffModal').classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        function generateClassDiff(classData, changeType) {
+            const statsEl = document.getElementById('diffStats');
+            const contentEl = document.getElementById('diffContent');
+            
+            // Generate stats
+            statsEl.innerHTML = `
+                <div class="stat-item">
+                    <span>Change Type:</span>
+                    <span class="stat-${changeType}">${changeType.toUpperCase()}</span>
+                </div>
+                <div class="stat-item">
+                    <span>Package:</span>
+                    <span>${classData.packageName || 'Unknown'}</span>
+                </div>
+                <div class="stat-item">
+                    <span>Class:</span>
+                    <span>${classData.className}</span>
+                </div>
+            `;
+
+            // Generate diff content based on change type
+            let diffContent = '';
+            
+            if (changeType === 'added') {
+                diffContent = generateAddedClassDiff(classData);
+            } else if (changeType === 'removed') {
+                diffContent = generateRemovedClassDiff(classData);
+            } else if (changeType === 'modified') {
+                diffContent = generateModifiedClassDiff(classData);
+            }
+
+            contentEl.innerHTML = diffContent;
+        }
+
+        function generateAddedClassDiff(classData) {
+            const methods = classData.addedMethods || [];
+            const interfaces = classData.interfaceChanges || [];
+            const accessModifier = classData.accessModifier || 'public';
+            
+            return `
+                <div class="diff-section">
+                    <div class="diff-section-header">📁 Package: ${classData.packageName}</div>
+                    <div class="diff-line added">
+                        <div class="line-number">+</div>
+                        <div class="line-content">+ class ${getSimpleClassName(classData.className)} {</div>
+                    </div>
+                    
+                    ${accessModifier !== 'public' ? `
+                    <div class="diff-line added access-modifier">
+                        <div class="line-number">+</div>
+                        <div class="line-content">+   // Access: ${accessModifier}</div>
+                    </div>
+                    ` : ''}
+                    
+                    ${interfaces.length > 0 ? interfaces.map(iface => `
+                        <div class="diff-line added interface-change">
+                            <div class="line-number">+</div>
+                            <div class="line-content">+   implements ${iface}</div>
+                        </div>
+                    `).join('') : ''}
+                    ${methods.length > 0 ? methods.map(method => `
+                        <div class="diff-line added method-signature">
+                            <div class="line-number">+</div>
+                            <div class="line-content">+   ${method}</div>
+                        </div>
+                    `).join('') : `
+                        <div class="diff-line added">
+                            <div class="line-number">+</div>
+                            <div class="line-content">+   // Class structure will be analyzed</div>
+                        </div>
+                    `}
+                    <div class="diff-line added">
+                        <div class="line-number">+</div>
+                        <div class="line-content">+ }</div>
+                    </div>
+                </div>
+                <div class="diff-section">
+                    <div class="diff-section-header">📊 Summary</div>
+                    <div class="diff-line context">
+                        <div class="line-number"></div>
+                        <div class="line-content">✅ This class was added in the new JAR file.</div>
+                    </div>
+                    <div class="diff-line added method-signature">
+                        <div class="line-number">+</div>
+                        <div class="line-content">📈 Methods detected: ${methods.length}</div>
+                    </div>
+                    ${interfaces.length > 0 ? `
+                    <div class="diff-line added interface-change">
+                        <div class="line-number">+</div>
+                        <div class="line-content">🔗 Interfaces: ${interfaces.length}</div>
+                    </div>
+                    ` : ''}
+                    ${accessModifier !== 'public' ? `
+                    <div class="diff-line added access-modifier">
+                        <div class="line-number">+</div>
+                        <div class="line-content">🔐 Access: ${accessModifier}</div>
+                    </div>
+                    ` : ''}
+                </div>
+                ${generateBytecodeSection(classData, 'added')}
+            `;
+        }
+
+        function generateRemovedClassDiff(classData) {
+            const methods = classData.removedMethods || [];
+            const interfaces = classData.interfaceChanges || [];
+            const accessModifier = classData.accessModifier || 'public';
+            
+            return `
+                <div class="diff-section">
+                    <div class="diff-section-header">📁 Package: ${classData.packageName}</div>
+                    <div class="diff-line removed">
+                        <div class="line-number">-</div>
+                        <div class="line-content">- class ${getSimpleClassName(classData.className)} {</div>
+                    </div>
+                    
+                    ${accessModifier !== 'public' ? `
+                    <div class="diff-line removed access-modifier">
+                        <div class="line-number">-</div>
+                        <div class="line-content">-   // Access: ${accessModifier}</div>
+                    </div>
+                    ` : ''}
+                    
+                    ${interfaces.length > 0 ? interfaces.map(iface => `
+                        <div class="diff-line removed interface-change">
+                            <div class="line-number">-</div>
+                            <div class="line-content">-   implements ${iface}</div>
+                        </div>
+                    `).join('') : ''}
+                    ${methods.length > 0 ? methods.map(method => `
+                        <div class="diff-line removed method-signature">
+                            <div class="line-number">-</div>
+                            <div class="line-content">-   ${method}</div>
+                        </div>
+                    `).join('') : `
+                        <div class="diff-line removed">
+                            <div class="line-number">-</div>
+                            <div class="line-content">-   // Class structure was analyzed</div>
+                        </div>
+                    `}
+                    <div class="diff-line removed">
+                        <div class="line-number">-</div>
+                        <div class="line-content">- }</div>
+                    </div>
+                </div>
+                <div class="diff-section">
+                    <div class="diff-section-header">📊 Summary</div>
+                    <div class="diff-line context">
+                        <div class="line-number"></div>
+                        <div class="line-content">❌ This class was removed from the old JAR file.</div>
+                    </div>
+                    <div class="diff-line removed method-signature">
+                        <div class="line-number">-</div>
+                        <div class="line-content">📉 Methods lost: ${methods.length}</div>
+                    </div>
+                    ${interfaces.length > 0 ? `
+                    <div class="diff-line removed interface-change">
+                        <div class="line-number">-</div>
+                        <div class="line-content">🔗 Interfaces lost: ${interfaces.length}</div>
+                    </div>
+                    ` : ''}
+                    ${accessModifier !== 'public' ? `
+                    <div class="diff-line removed access-modifier">
+                        <div class="line-number">-</div>
+                        <div class="line-content">🔐 Access was: ${accessModifier}</div>
+                    </div>
+                    ` : ''}
+                </div>
+                ${generateBytecodeSection(classData, 'removed')}
+            `;
+        }
+
+        function generateModifiedClassDiff(classData) {
+            const addedMethods = classData.addedMethods || [];
+            const removedMethods = classData.removedMethods || [];
+            const modifiedMethods = classData.modifiedMethods || [];
+            const accessChange = classData.accessModifierChange;
+            const interfaceChanges = classData.interfaceChanges || [];
+            
+            return `
+                <div class="diff-section">
+                    <div class="diff-section-header">📁 Package: ${classData.packageName}</div>
+                    <div class="diff-line context">
+                        <div class="line-number"></div>
+                        <div class="line-content">class ${getSimpleClassName(classData.className)} {</div>
+                    </div>
+                    
+                    ${accessChange ? `
+                    <div class="diff-line removed access-modifier">
+                        <div class="line-number">-</div>
+                        <div class="line-content">-   // Access: ${accessChange.split(' -> ')[0]}</div>
+                    </div>
+                    <div class="diff-line added access-modifier">
+                        <div class="line-number">+</div>
+                        <div class="line-content">+   // Access: ${accessChange.split(' -> ')[1]}</div>
+                    </div>
+                    ` : ''}
+                    
+                    ${interfaceChanges.length > 0 ? interfaceChanges.map(change => {
+                        const isAdded = change.startsWith('+');
+                        const interfaceName = change.substring(2);
+                        return `
+                        <div class="diff-line ${isAdded ? 'added' : 'removed'} interface-change">
+                            <div class="line-number">${isAdded ? '+' : '-'}</div>
+                            <div class="line-content">${change.charAt(0)}   implements ${interfaceName}</div>
+                        </div>
+                        `;
+                    }).join('') : ''}
+                    
+                    ${removedMethods.length > 0 ? removedMethods.map(method => `
+                        <div class="diff-line removed method-signature">
+                            <div class="line-number">-</div>
+                            <div class="line-content">-   ${method}</div>
+                        </div>
+                    `).join('') : ''}
+                    
+                    ${addedMethods.length > 0 ? addedMethods.map(method => `
+                        <div class="diff-line added method-signature">
+                            <div class="line-number">+</div>
+                            <div class="line-content">+   ${method}</div>
+                        </div>
+                    `).join('') : ''}
+                    
+                    ${modifiedMethods.length > 0 ? `
+                    <div class="diff-line context">
+                        <div class="line-number"></div>
+                        <div class="line-content">   // ${modifiedMethods.length} method(s) modified</div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="diff-line context">
+                        <div class="line-number"></div>
+                        <div class="line-content">}</div>
+                    </div>
+                </div>
+                <div class="diff-section">
+                    <div class="diff-section-header">📊 Detailed Summary</div>
+                    <div class="diff-line context">
+                        <div class="line-number"></div>
+                        <div class="line-content">🔄 This class was modified between versions.</div>
+                    </div>
+                    ${addedMethods.length > 0 ? `
+                    <div class="diff-line added method-signature">
+                        <div class="line-number">+</div>
+                        <div class="line-content">➕ Methods added: ${addedMethods.length}</div>
+                    </div>
+                    ` : ''}
+                    ${removedMethods.length > 0 ? `
+                    <div class="diff-line removed method-signature">
+                        <div class="line-number">-</div>
+                        <div class="line-content">➖ Methods removed: ${removedMethods.length}</div>
+                    </div>
+                    ` : ''}
+                    ${modifiedMethods.length > 0 ? `
+                    <div class="diff-line context">
+                        <div class="line-number"></div>
+                        <div class="line-content">🔧 Methods modified: ${modifiedMethods.length}</div>
+                    </div>
+                    ` : ''}
+                    ${accessChange ? `
+                    <div class="diff-line access-modifier">
+                        <div class="line-number">~</div>
+                        <div class="line-content">🔐 Access changed: ${accessChange}</div>
+                    </div>
+                    ` : ''}
+                    ${interfaceChanges.length > 0 ? `
+                    <div class="diff-line interface-change">
+                        <div class="line-number">~</div>
+                        <div class="line-content">🔗 Interface changes: ${interfaceChanges.length}</div>
+                    </div>
+                    ` : ''}
+                </div>
+                ${generateBytecodeSection(classData, 'modified')}
+            `;
+        }
+
+        function generateBytecodeSection(classData, changeType) {
+            const methodBytecodes = classData.methodBytecodes || {};
+            
+            if (Object.keys(methodBytecodes).length === 0) {
+                return '';
+            }
+            
+            let bytecodeHtml = '<div class="diff-section bytecode-only" style="display: none;">';
+            bytecodeHtml += '<div class="diff-section-header">🔍 ASM Bytecode Analysis</div>';
+            
+            for (const [methodSignature, asmCode] of Object.entries(methodBytecodes)) {
+                const escapedAsm = escapeHtml(asmCode);
+                const coloredAsm = highlightAsmCode(escapedAsm);
+                
+                bytecodeHtml += `
+                    <div class="bytecode-section">
+                        <div class="bytecode-header">Method: ${escapeHtml(methodSignature)}</div>
+                        <div class="bytecode-content">${coloredAsm}</div>
+                    </div>
+                `;
+            }
+            
+            bytecodeHtml += '</div>';
+            return bytecodeHtml;
+        }
+        
+        function highlightAsmCode(asmCode) {
+            return asmCode
+                // Highlight instruction numbers
+                .replace(/(\d{3}:)/g, '<span class="bytecode-number">$1</span>')
+                // Highlight instructions
+                .replace(/(ALOAD|ASTORE|ILOAD|ISTORE|INVOKE\w+|RETURN|IRETURN|ARETURN|NEW|DUP|GET\w+|PUT\w+|CHECKCAST|INSTANCEOF|I\w+|BIPUSH|SIPUSH|LDC|ICONST_\w+)/g, '<span class="bytecode-instruction">$1</span>')
+                // Highlight comments
+                .replace(/(\/\/.*)/g, '<span class="bytecode-comment">$1</span>');
+        }
+        
+        function toggleBytecodeView() {
+            const checkbox = document.getElementById('showBytecode');
+            const bytecodeElements = document.querySelectorAll('.bytecode-only');
+            
+            bytecodeElements.forEach(element => {
+                element.style.display = checkbox.checked ? 'block' : 'none';
+            });
+        }
+
+        function generateMethodLines(methods, changeType) {
+            if (!methods || methods.length === 0) {
+                return `
+                    <div class="diff-line ${changeType}">
+                        <div class="line-number">${changeType === 'added' ? '+' : '-'}</div>
+                        <div class="line-content">${changeType === 'added' ? '+' : '-'}   // Methods will be analyzed in detail</div>
+                    </div>
+                `;
+            }
+
+            return methods.map(method => `
+                <div class="diff-line ${changeType}">
+                    <div class="line-number">${changeType === 'added' ? '+' : '-'}</div>
+                    <div class="line-content">${changeType === 'added' ? '+' : '-'}   ${method}</div>
+                </div>
+            `).join('');
+        }
+
+        function getSimpleClassName(fullClassName) {
+            const parts = fullClassName.split('.');
+            return parts[parts.length - 1];
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('diffModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDiffModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('diffModal').classList.contains('active')) {
+                closeDiffModal();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -2,6 +2,8 @@ package com.example.depanalysis.controller;
 
 import com.example.depanalysis.dto.FinalReport;
 import com.example.depanalysis.service.AnalysisOrchestrator;
+import com.example.depanalysis.report.ReportGenerator;
+import com.example.depanalysis.report.ReportFormat;
 import com.example.depanalysis.util.ZipExtractor;
 
 import org.slf4j.Logger;
@@ -23,13 +25,16 @@ public class DependencyAnalysisController {
     private static final Logger logger = LoggerFactory.getLogger(DependencyAnalysisController.class);
 
     private final AnalysisOrchestrator orchestrator;
+    private final ReportGenerator reportGenerator;
 
-    public DependencyAnalysisController(AnalysisOrchestrator orchestrator) {
+    public DependencyAnalysisController(AnalysisOrchestrator orchestrator, ReportGenerator reportGenerator) {
         this.orchestrator = orchestrator;
+        this.reportGenerator = reportGenerator;
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<?> analyze(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> analyze(@RequestParam("file") MultipartFile file,
+                                   @RequestParam(value = "format", defaultValue = "json") String format) {
         Path tempDir = null;
         try {
             // Validate the file
@@ -48,7 +53,18 @@ public class DependencyAnalysisController {
             // Run orchestrator
             FinalReport report = orchestrator.analyzeAll(tempDir);
             
-            return ResponseEntity.ok(report);
+            if ("html".equalsIgnoreCase(format)) {
+                // Generate HTML report and return redirect info
+                reportGenerator.generateReport(report, ReportFormat.HTML, "reports");
+                
+                return ResponseEntity.ok(java.util.Map.of(
+                    "downloadUrl", "/reports/dependency-analysis-report.html",
+                    "message", "Report generated successfully"
+                ));
+            } else {
+                // Return JSON report directly
+                return ResponseEntity.ok(report);
+            }
 
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Results</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #4a5568;
+        }
+
+        .loading .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            text-align: center;
+            padding: 60px 20px;
+            color: #e53e3e;
+        }
+
+        .error-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .results-title {
+            color: #2d3748;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .format-badge {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .download-section {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin: 0 10px 10px 0;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .download-btn.secondary {
+            background: #48bb78;
+        }
+
+        .download-btn.secondary:hover {
+            box-shadow: 0 8px 25px rgba(72, 187, 120, 0.4);
+        }
+
+        .results-content {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .json-viewer {
+            background: #1a202c;
+            border-radius: 12px;
+            padding: 20px;
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .json-viewer pre {
+            color: #e2e8f0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .summary-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+
+        .summary-card .number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #718096;
+        }
+
+        .no-results-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .results-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="jar-analysis.html" class="back-link">← Back to Analysis</a>
+    
+    <div class="header">
+        <h1>Analysis Results</h1>
+        <p>Project dependency analysis completed</p>
+    </div>
+
+    <div class="container">
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <h3>Loading results...</h3>
+            <p>Please wait while we prepare your analysis results.</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;">
+            <div class="error-icon">⚠️</div>
+            <h3>Unable to Load Results</h3>
+            <p>There was an issue loading your analysis results. Please try running the analysis again.</p>
+            <a href="jar-analysis.html" class="download-btn" style="margin-top: 20px;">Run New Analysis</a>
+        </div>
+
+        <div id="results" style="display: none;">
+            <div class="results-header">
+                <h2 class="results-title">Analysis Complete</h2>
+                <div class="format-badge" id="formatBadge">JSON</div>
+            </div>
+
+            <div class="download-section">
+                <h3 style="margin-bottom: 16px; color: #4a5568;">Download Options</h3>
+                <a href="#" id="downloadJson" class="download-btn">
+                    📄 Download JSON Report
+                </a>
+                <a href="#" id="downloadHtml" class="download-btn secondary" style="display: none;">
+                    🌐 View HTML Report
+                </a>
+            </div>
+
+            <div id="summarySection" class="summary-cards" style="display: none;">
+                <!-- Summary cards will be populated by JavaScript -->
+            </div>
+
+            <div class="results-content">
+                <h3 style="margin-bottom: 20px; color: #4a5568;">Detailed Results</h3>
+                <div id="jsonViewer" class="json-viewer">
+                    <pre id="jsonContent"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div id="noResults" class="no-results" style="display: none;">
+            <div class="no-results-icon">📋</div>
+            <h3>No Results Available</h3>
+            <p>No analysis results found. Please run an analysis first.</p>
+            <a href="jar-analysis.html" class="download-btn" style="margin-top: 20px;">Start Analysis</a>
+        </div>
+    </div>
+
+    <script>
+        let analysisData = null;
+        let analysisFormat = 'json';
+
+        // Load results on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadResults();
+        });
+
+        function loadResults() {
+            try {
+                // Get stored analysis results
+                const storedData = localStorage.getItem('analysisResult');
+                const storedFormat = localStorage.getItem('analysisFormat');
+
+                if (!storedData) {
+                    showNoResults();
+                    return;
+                }
+
+                analysisData = JSON.parse(storedData);
+                analysisFormat = storedFormat || 'json';
+
+                // Hide loading and show results
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+
+                // Update format badge
+                document.getElementById('formatBadge').textContent = analysisFormat.toUpperCase();
+
+                // Setup download links
+                setupDownloadLinks();
+
+                // Show summary if available
+                showSummary();
+
+                // Display JSON content
+                displayJsonContent();
+
+            } catch (error) {
+                console.error('Error loading results:', error);
+                showError();
+            }
+        }
+
+        function setupDownloadLinks() {
+            const downloadJson = document.getElementById('downloadJson');
+            const downloadHtml = document.getElementById('downloadHtml');
+
+            // Setup JSON download
+            downloadJson.addEventListener('click', function(e) {
+                e.preventDefault();
+                downloadAsJson();
+            });
+
+            // Setup HTML link if available
+            if (analysisData.downloadUrl) {
+                downloadHtml.style.display = 'inline-block';
+                downloadHtml.href = analysisData.downloadUrl;
+                downloadHtml.target = '_blank';
+            }
+        }
+
+        function downloadAsJson() {
+            const jsonStr = JSON.stringify(analysisData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'dependency-analysis-report.json';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        function showSummary() {
+            // Try to extract summary information from the analysis data
+            const summarySection = document.getElementById('summarySection');
+            
+            if (analysisData.summary || analysisData.vulnerabilityResults || analysisData.totalIssues) {
+                const cards = [];
+                
+                // Add summary cards based on available data
+                if (analysisData.totalIssues !== undefined) {
+                    cards.push({
+                        title: 'Total Issues',
+                        value: analysisData.totalIssues,
+                        color: 'linear-gradient(135deg, #f56565, #e53e3e)'
+                    });
+                }
+                
+                if (analysisData.vulnerabilityResults && analysisData.vulnerabilityResults.length !== undefined) {
+                    cards.push({
+                        title: 'Vulnerabilities',
+                        value: analysisData.vulnerabilityResults.length,
+                        color: 'linear-gradient(135deg, #ed8936, #dd6b20)'
+                    });
+                }
+                
+                if (analysisData.dependencyCount !== undefined) {
+                    cards.push({
+                        title: 'Dependencies',
+                        value: analysisData.dependencyCount,
+                        color: 'linear-gradient(135deg, #48bb78, #38a169)'
+                    });
+                }
+
+                if (cards.length > 0) {
+                    summarySection.innerHTML = cards.map(card => `
+                        <div class="summary-card" style="background: ${card.color};">
+                            <h3>${card.title}</h3>
+                            <div class="number">${card.value}</div>
+                        </div>
+                    `).join('');
+                    summarySection.style.display = 'grid';
+                }
+            }
+        }
+
+        function displayJsonContent() {
+            const jsonContent = document.getElementById('jsonContent');
+            const formattedJson = JSON.stringify(analysisData, null, 2);
+            jsonContent.textContent = formattedJson;
+        }
+
+        function showError() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+        }
+
+        function showNoResults() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('noResults').style.display = 'block';
+        }
+
+        // Clear results when leaving the page
+        window.addEventListener('beforeunload', function() {
+            // Optionally clear stored results
+            // localStorage.removeItem('analysisResult');
+            // localStorage.removeItem('analysisFormat');
+        });
+    </script>
+</body>
+</html>

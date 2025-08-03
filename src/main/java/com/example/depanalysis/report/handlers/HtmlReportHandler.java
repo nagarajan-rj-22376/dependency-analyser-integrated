@@ -7,6 +7,7 @@ import com.example.depanalysis.util.ReportDataProcessor.VulnerabilityGroup;
 import com.example.depanalysis.util.ReportDataProcessor.DeprecationGroup;
 import com.example.depanalysis.util.ReportDataProcessor.CompatibilityGroup;
 import com.example.depanalysis.util.SignatureFormatter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -49,9 +50,37 @@ public class HtmlReportHandler implements ReportFormatHandler {
             .append("<body>\n")
             .append("    <div class=\"container\">\n")
             .append("        <header class=\"report-header\">\n")
-            .append("            <h1>🔍 Dependency Analysis Report</h1>\n")
-            .append("            <div class=\"metadata\">\n")
-            .append("                <span class=\"timestamp\">Generated: ").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))).append("</span>\n")
+            .append("            <div class=\"header-content\">\n")
+            .append("                <div class=\"header-left\">\n")
+            .append("                    <h1>🔍 Dependency Analysis Report</h1>\n")
+            .append("                    <div class=\"metadata\">\n")
+            .append("                        <span class=\"timestamp\">Generated: ").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))).append("</span>\n")
+            .append("                    </div>\n")
+            .append("                </div>\n")
+            .append("                <div class=\"header-right\">\n")
+            .append("                    <div class=\"download-dropdown\">\n")
+            .append("                        <button class=\"download-btn\" onclick=\"toggleDownloadMenu()\">\n")
+            .append("                            📥 Download Report\n")
+            .append("                            <span class=\"dropdown-arrow\">▼</span>\n")
+            .append("                        </button>\n")
+            .append("                        <div class=\"download-menu\" id=\"downloadMenu\">\n")
+            .append("                            <a href=\"#\" onclick=\"downloadAsJson()\" class=\"download-option\">\n")
+            .append("                                <span class=\"download-icon\">📄</span>\n")
+            .append("                                <span class=\"download-text\">\n")
+            .append("                                    <strong>JSON Report</strong>\n")
+            .append("                                    <small>Machine readable format</small>\n")
+            .append("                                </span>\n")
+            .append("                            </a>\n")
+            .append("                            <a href=\"#\" onclick=\"downloadAsHtml()\" class=\"download-option\">\n")
+            .append("                                <span class=\"download-icon\">🌐</span>\n")
+            .append("                                <span class=\"download-text\">\n")
+            .append("                                    <strong>HTML Report</strong>\n")
+            .append("                                    <small>Current page as file</small>\n")
+            .append("                                </span>\n")
+            .append("                            </a>\n")
+            .append("                        </div>\n")
+            .append("                    </div>\n")
+            .append("                </div>\n")
             .append("            </div>\n")
             .append("        </header>\n");
 
@@ -109,6 +138,10 @@ public class HtmlReportHandler implements ReportFormatHandler {
 
         html.append("    </div>\n")
             .append("    <script>\n")
+            .append("        // Embed analysis data for download functionality\n")
+            .append("        const analysisData = ").append(convertReportToJson(report)).append(";\n")
+            .append("        localStorage.setItem('analysisResult', JSON.stringify(analysisData));\n")
+            .append("        \n")
             .append(getJavaScript())
             .append("    </script>\n")
             .append("</body>\n")
@@ -117,34 +150,61 @@ public class HtmlReportHandler implements ReportFormatHandler {
         return html.toString();
     }
 
+    private String convertReportToJson(FinalReport report) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            return objectMapper.writeValueAsString(report);
+        } catch (Exception e) {
+            // Fallback to simple JSON structure if Jackson fails
+            try {
+                StringBuilder json = new StringBuilder();
+                json.append("{");
+                json.append("\"timestamp\":\"").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("\",");
+                json.append("\"sections\":[");
+                
+                if (report.getSections() != null) {
+                    for (int i = 0; i < report.getSections().size(); i++) {
+                        if (i > 0) json.append(",");
+                        FeatureReportSection section = report.getSections().get(i);
+                        json.append("{");
+                        json.append("\"featureName\":\"").append(escapeJsonString(section.getFeatureName())).append("\",");
+                        json.append("\"result\":").append(objectToJsonString(section.getResult()));
+                        json.append("}");
+                    }
+                }
+                
+                json.append("]");
+                json.append("}");
+                return json.toString();
+            } catch (Exception fallbackError) {
+                return "{\"error\":\"Failed to convert report to JSON\"}";
+            }
+        }
+    }
+
+    private String objectToJsonString(Object obj) {
+        if (obj == null) return "null";
+        if (obj instanceof String) return "\"" + escapeJsonString(obj.toString()) + "\"";
+        if (obj instanceof Number || obj instanceof Boolean) return obj.toString();
+        
+        // For complex objects, use toString() and escape properly
+        return "\"" + escapeJsonString(obj.toString()) + "\"";
+    }
+
+    private String escapeJsonString(String str) {
+        if (str == null) return "";
+        return str.replace("\\", "\\\\")
+                  .replace("\"", "\\\"")
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("\t", "\\t");
+    }
+
     private String getTabId(String featureName) {
         return featureName.toLowerCase()
                          .replace(" ", "-")
                          .replace("&", "and")
                          .replaceAll("[^a-z0-9-]", "");
-    }
-
-    private String generateSectionHtml(FeatureReportSection section) {
-        StringBuilder html = new StringBuilder();
-        String featureName = section.getFeatureName();
-        
-        html.append("        <section class=\"analysis-section\">\n")
-            .append("            <h2 class=\"section-title\">").append(getFeatureIcon(featureName)).append(" ").append(featureName).append("</h2>\n");
-
-        if ("Vulnerability Scan".equalsIgnoreCase(featureName)) {
-            html.append(generateVulnerabilitySection(section.getResult()));
-        } else if ("Deprecation Analysis".equalsIgnoreCase(featureName)) {
-            html.append(generateDeprecationSection(section.getResult()));
-        } else if ("API Compatibility".equalsIgnoreCase(featureName)) {
-            html.append(generateCompatibilitySection(section.getResult()));
-        } else {
-            html.append("            <div class=\"content-card\">\n")
-                .append("                <pre>").append(escapeHtml(section.getResult().toString())).append("</pre>\n")
-                .append("            </div>\n");
-        }
-
-        html.append("        </section>\n");
-        return html.toString();
     }
 
     private String generateVulnerabilitySection(Object result) {
@@ -439,7 +499,22 @@ public class HtmlReportHandler implements ReportFormatHandler {
                "    padding: 30px;\n" +
                "    margin-bottom: 30px;\n" +
                "    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);\n" +
-               "    text-align: center;\n" +
+               "}\n" +
+               "\n" +
+               ".header-content {\n" +
+               "    display: flex;\n" +
+               "    justify-content: space-between;\n" +
+               "    align-items: center;\n" +
+               "    flex-wrap: wrap;\n" +
+               "    gap: 20px;\n" +
+               "}\n" +
+               "\n" +
+               ".header-left {\n" +
+               "    text-align: left;\n" +
+               "}\n" +
+               "\n" +
+               ".header-right {\n" +
+               "    position: relative;\n" +
                "}\n" +
                "\n" +
                ".report-header h1 {\n" +
@@ -452,6 +527,121 @@ public class HtmlReportHandler implements ReportFormatHandler {
                ".metadata {\n" +
                "    color: #7f8c8d;\n" +
                "    font-size: 1.1em;\n" +
+               "}\n" +
+               "\n" +
+               ".download-dropdown {\n" +
+               "    position: relative;\n" +
+               "    display: inline-block;\n" +
+               "}\n" +
+               "\n" +
+               ".download-btn {\n" +
+               "    background: linear-gradient(135deg, #667eea, #764ba2);\n" +
+               "    color: white;\n" +
+               "    border: none;\n" +
+               "    padding: 12px 20px;\n" +
+               "    border-radius: 8px;\n" +
+               "    font-size: 1rem;\n" +
+               "    font-weight: 600;\n" +
+               "    cursor: pointer;\n" +
+               "    display: flex;\n" +
+               "    align-items: center;\n" +
+               "    gap: 8px;\n" +
+               "    transition: all 0.3s ease;\n" +
+               "    min-width: 160px;\n" +
+               "    justify-content: space-between;\n" +
+               "}\n" +
+               "\n" +
+               ".download-btn:hover {\n" +
+               "    transform: translateY(-2px);\n" +
+               "    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);\n" +
+               "}\n" +
+               "\n" +
+               ".dropdown-arrow {\n" +
+               "    transition: transform 0.3s ease;\n" +
+               "    font-size: 0.8em;\n" +
+               "}\n" +
+               "\n" +
+               ".dropdown-arrow.open {\n" +
+               "    transform: rotate(180deg);\n" +
+               "}\n" +
+               "\n" +
+               ".download-menu {\n" +
+               "    position: absolute;\n" +
+               "    top: 100%;\n" +
+               "    right: 0;\n" +
+               "    background: white;\n" +
+               "    border-radius: 8px;\n" +
+               "    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);\n" +
+               "    min-width: 220px;\n" +
+               "    opacity: 0;\n" +
+               "    visibility: hidden;\n" +
+               "    transform: translateY(-10px);\n" +
+               "    transition: all 0.3s ease;\n" +
+               "    z-index: 1000;\n" +
+               "    margin-top: 8px;\n" +
+               "}\n" +
+               "\n" +
+               ".download-menu.show {\n" +
+               "    opacity: 1;\n" +
+               "    visibility: visible;\n" +
+               "    transform: translateY(0);\n" +
+               "}\n" +
+               "\n" +
+               ".download-option {\n" +
+               "    display: flex;\n" +
+               "    align-items: center;\n" +
+               "    padding: 12px 16px;\n" +
+               "    text-decoration: none;\n" +
+               "    color: #333;\n" +
+               "    transition: background-color 0.2s ease;\n" +
+               "    gap: 12px;\n" +
+               "}\n" +
+               "\n" +
+               ".download-option:hover {\n" +
+               "    background-color: #f8f9fa;\n" +
+               "}\n" +
+               "\n" +
+               ".download-option:first-child {\n" +
+               "    border-top-left-radius: 8px;\n" +
+               "    border-top-right-radius: 8px;\n" +
+               "}\n" +
+               "\n" +
+               ".download-option:last-child {\n" +
+               "    border-bottom-left-radius: 8px;\n" +
+               "    border-bottom-right-radius: 8px;\n" +
+               "}\n" +
+               "\n" +
+               ".download-icon {\n" +
+               "    font-size: 1.2em;\n" +
+               "}\n" +
+               "\n" +
+               ".download-text {\n" +
+               "    display: flex;\n" +
+               "    flex-direction: column;\n" +
+               "    gap: 2px;\n" +
+               "}\n" +
+               "\n" +
+               ".download-text strong {\n" +
+               "    font-weight: 600;\n" +
+               "    color: #2c3e50;\n" +
+               "}\n" +
+               "\n" +
+               ".download-text small {\n" +
+               "    color: #7f8c8d;\n" +
+               "    font-size: 0.85em;\n" +
+               "}\n" +
+               "\n" +
+               "@media (max-width: 768px) {\n" +
+               "    .header-content {\n" +
+               "        flex-direction: column;\n" +
+               "        text-align: center;\n" +
+               "    }\n" +
+               "    .header-left {\n" +
+               "        text-align: center;\n" +
+               "    }\n" +
+               "    .report-header h1 {\n" +
+               "        font-size: 2em;\n" +
+               "    }\n" +
                "}\n" +
                "\n" +
                ".tab-container {\n" +
@@ -832,6 +1022,65 @@ public class HtmlReportHandler implements ReportFormatHandler {
                "        targetButton.classList.add('active');\n" +
                "    }\n" +
                "}\n" +
+               "\n" +
+               "// Download dropdown functionality\n" +
+               "function toggleDownloadMenu() {\n" +
+               "    const menu = document.getElementById('downloadMenu');\n" +
+               "    const arrow = document.querySelector('.dropdown-arrow');\n" +
+               "    \n" +
+               "    menu.classList.toggle('show');\n" +
+               "    arrow.classList.toggle('open');\n" +
+               "}\n" +
+               "\n" +
+               "function downloadAsJson() {\n" +
+               "    // Get the analysis data from localStorage if available\n" +
+               "    const analysisData = localStorage.getItem('analysisResult');\n" +
+               "    \n" +
+               "    if (analysisData) {\n" +
+               "        const blob = new Blob([analysisData], { type: 'application/json' });\n" +
+               "        const url = window.URL.createObjectURL(blob);\n" +
+               "        const a = document.createElement('a');\n" +
+               "        a.style.display = 'none';\n" +
+               "        a.href = url;\n" +
+               "        a.download = 'dependency-analysis-report.json';\n" +
+               "        document.body.appendChild(a);\n" +
+               "        a.click();\n" +
+               "        window.URL.revokeObjectURL(url);\n" +
+               "        document.body.removeChild(a);\n" +
+               "    } else {\n" +
+               "        alert('JSON data not available. Please run a new analysis.');\n" +
+               "    }\n" +
+               "    \n" +
+               "    toggleDownloadMenu();\n" +
+               "}\n" +
+               "\n" +
+               "function downloadAsHtml() {\n" +
+               "    // Download current HTML page\n" +
+               "    const htmlContent = document.documentElement.outerHTML;\n" +
+               "    const blob = new Blob([htmlContent], { type: 'text/html' });\n" +
+               "    const url = window.URL.createObjectURL(blob);\n" +
+               "    const a = document.createElement('a');\n" +
+               "    a.style.display = 'none';\n" +
+               "    a.href = url;\n" +
+               "    a.download = 'dependency-analysis-report.html';\n" +
+               "    document.body.appendChild(a);\n" +
+               "    a.click();\n" +
+               "    window.URL.revokeObjectURL(url);\n" +
+               "    document.body.removeChild(a);\n" +
+               "    \n" +
+               "    toggleDownloadMenu();\n" +
+               "}\n" +
+               "\n" +
+               "// Close dropdown when clicking outside\n" +
+               "document.addEventListener('click', function(event) {\n" +
+               "    const dropdown = document.querySelector('.download-dropdown');\n" +
+               "    const menu = document.getElementById('downloadMenu');\n" +
+               "    \n" +
+               "    if (dropdown && !dropdown.contains(event.target)) {\n" +
+               "        menu.classList.remove('show');\n" +
+               "        document.querySelector('.dropdown-arrow').classList.remove('open');\n" +
+               "    }\n" +
+               "});\n" +
                "\n" +
                "// Enhanced report functionality\n" +
                "document.addEventListener('DOMContentLoaded', function() {\n" +

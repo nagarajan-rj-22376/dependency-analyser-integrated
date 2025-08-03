@@ -17,7 +17,7 @@ public class DemoController {
 
     private static final String REPORTS_DIR = "reports";
 
-    @GetMapping("/reports/{filename}")
+    @GetMapping("/download/reports/{filename}")
     public ResponseEntity<FileSystemResource> downloadReport(@PathVariable String filename) {
         try {
             Path filePath = Paths.get(REPORTS_DIR, filename);

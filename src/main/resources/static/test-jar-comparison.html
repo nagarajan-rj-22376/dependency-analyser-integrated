@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test JAR Comparison</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        button { padding: 10px 20px; margin: 10px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>JAR Comparison Debug Test</h1>
+    
+    <div class="test-section">
+        <h3>Upload and Compare JARs</h3>
+        <input type="file" id="oldJar" accept=".jar">
+        <input type="file" id="newJar" accept=".jar">
+        <button onclick="testComparison()">Test Compare JARs</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Results Loading</h3>
+        <button onclick="testLoadResults()">Test Load Results from Storage</button>
+        <button onclick="clearStorage()">Clear Storage</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Debug Log</h3>
+        <div id="debugLog" class="log"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('debugLog');
+            logDiv.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            console.log(message);
+        }
+
+        function testComparison() {
+            const oldJarFile = document.getElementById('oldJar').files[0];
+            const newJarFile = document.getElementById('newJar').files[0];
+            
+            if (!oldJarFile || !newJarFile) {
+                log('ERROR: Please select both JAR files');
+                return;
+            }
+            
+            log('Starting JAR comparison test...');
+            log('Old JAR: ' + oldJarFile.name);
+            log('New JAR: ' + newJarFile.name);
+            
+            const formData = new FormData();
+            formData.append('oldJar', oldJarFile);
+            formData.append('newJar', newJarFile);
+            
+            fetch('/api/jar-comparison/compare', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                log('Response status: ' + response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                log('SUCCESS: Received response from backend');
+                log('Response data: ' + JSON.stringify(data, null, 2));
+                
+                // Store the result
+                localStorage.setItem('jarComparisonResult', JSON.stringify(data));
+                log('Data stored in localStorage');
+                
+                // Test the identical files check
+                const isIdentical = testIsIdenticalFiles(data);
+                log('Is identical files? ' + isIdentical);
+                
+                // Simulate what happens in the real app
+                if (isIdentical) {
+                    log('WOULD SHOW: Identical files message');
+                } else {
+                    log('WOULD REDIRECT TO: jar-comparison-results.html');
+                    log('You can now test loading results from storage');
+                }
+            })
+            .catch(error => {
+                log('ERROR: ' + error.message);
+            });
+        }
+        
+        function testIsIdenticalFiles(result) {
+            if (!result.summary) {
+                log('No summary found - treating as non-identical');
+                return false;
+            }
+            
+            log('Checking identical files with summary values:');
+            log('packagesAdded: ' + result.summary.packagesAdded);
+            log('packagesRemoved: ' + result.summary.packagesRemoved);
+            log('packagesModified: ' + result.summary.packagesModified);
+            log('classesAdded: ' + result.summary.classesAdded);
+            log('classesRemoved: ' + result.summary.classesRemoved);
+            
+            const isIdentical = result.summary.packagesAdded === 0 && 
+                               result.summary.packagesRemoved === 0 && 
+                               result.summary.packagesModified === 0 &&
+                               result.summary.classesAdded === 0 && 
+                               result.summary.classesRemoved === 0;
+            
+            log('Final isIdentical result: ' + isIdentical);
+            return isIdentical;
+        }
+        
+        function testLoadResults() {
+            log('Testing load results from storage...');
+            const resultData = localStorage.getItem('jarComparisonResult');
+            
+            if (!resultData) {
+                log('ERROR: No result data found in localStorage');
+                return;
+            }
+            
+            try {
+                const result = JSON.parse(resultData);
+                log('SUCCESS: Loaded data from storage');
+                log('Loaded data: ' + JSON.stringify(result, null, 2));
+                
+                const isIdentical = testIsIdenticalFiles(result);
+                if (isIdentical) {
+                    log('RESULT: Would show identical files message');
+                } else {
+                    log('RESULT: Would show comparison results');
+                }
+            } catch (error) {
+                log('ERROR parsing stored data: ' + error.message);
+            }
+        }
+        
+        function clearStorage() {
+            localStorage.removeItem('jarComparisonResult');
+            log('Storage cleared');
+        }
+    </script>
+</body>
+</html>

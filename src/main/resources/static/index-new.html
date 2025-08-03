@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dependency Analysis Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 48px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 1.1rem;
+            margin-bottom: 48px;
+            font-weight: 400;
+        }
+
+        .analysis-cards {
+            display: flex;
+            gap: 32px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .analysis-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 40px 32px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            flex: 1;
+            min-width: 300px;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .analysis-card:hover {
+            border-color: #667eea;
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(102, 126, 234, 0.2);
+        }
+
+        .card-icon {
+            font-size: 4rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .card-title {
+            color: #2d3748;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .card-description {
+            color: #718096;
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .card-features {
+            list-style: none;
+            text-align: left;
+            margin: 20px 0;
+        }
+
+        .card-features li {
+            color: #4a5568;
+            padding: 8px 0;
+            position: relative;
+            padding-left: 24px;
+        }
+
+        .card-features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #48bb78;
+            font-weight: bold;
+        }
+
+        .card-button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .card-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .analysis-cards {
+                flex-direction: column;
+            }
+            
+            .container {
+                padding: 32px 24px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dependency Analysis Suite</h1>
+        <p class="subtitle">Choose your analysis type to get started</p>
+        
+        <div class="analysis-cards">
+            <div class="analysis-card" onclick="window.location.href='jar-analysis.html'">
+                <div class="card-icon">📊</div>
+                <h2 class="card-title">JAR Analysis</h2>
+                <p class="card-description">Comprehensive analysis of JAR dependencies, vulnerabilities, and compatibility issues.</p>
+                <ul class="card-features">
+                    <li>Dependency vulnerability scanning</li>
+                    <li>API compatibility checking</li>
+                    <li>Deprecation detection</li>
+                    <li>Security risk assessment</li>
+                </ul>
+                <button class="card-button">Start JAR Analysis</button>
+            </div>
+            
+            <div class="analysis-card" onclick="window.location.href='jar-comparison.html'">
+                <div class="card-icon">⚖️</div>
+                <h2 class="card-title">JAR Comparison</h2>
+                <p class="card-description">Compare two JAR files to identify changes at project, package, class, and method levels.</p>
+                <ul class="card-features">
+                    <li>Project-level differences</li>
+                    <li>Package structure changes</li>
+                    <li>Class modifications</li>
+                    <li>Method-level comparison</li>
+                </ul>
+                <button class="card-button">Start JAR Comparison</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

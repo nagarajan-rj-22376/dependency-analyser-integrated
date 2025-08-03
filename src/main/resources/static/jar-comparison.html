@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAR Comparison</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 48px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 700px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 1.1rem;
+            margin-bottom: 48px;
+            font-weight: 400;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .upload-pair {
+            display: flex;
+            gap: 32px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .upload-container {
+            flex: 1;
+            min-width: 280px;
+        }
+
+        .upload-container h3 {
+            color: #4a5568;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .jar-upload-area {
+            border: 2px dashed #cbd5e0;
+            border-radius: 16px;
+            padding: 40px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .jar-upload-area:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .jar-upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.02);
+        }
+
+        .jar-upload-icon {
+            font-size: 2.5rem;
+            color: #667eea;
+            margin-bottom: 16px;
+        }
+
+        .jar-upload-text {
+            color: #4a5568;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .jar-upload-hint {
+            color: #a0aec0;
+            font-size: 0.9rem;
+        }
+
+        .jar-selected-file {
+            background: rgba(72, 187, 120, 0.1);
+            color: #38a169;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: none;
+        }
+
+        .compare-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 18px 48px;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0.5;
+            pointer-events: none;
+            width: 100%;
+            margin-top: 24px;
+        }
+
+        .compare-btn:enabled {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .compare-btn:enabled:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .compare-btn:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 12px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.processing {
+            background: rgba(54, 162, 235, 0.1);
+            color: #3182ce;
+            border: 1px solid rgba(54, 162, 235, 0.2);
+            display: block;
+        }
+
+        .status.success {
+            background: rgba(72, 187, 120, 0.1);
+            color: #38a169;
+            border: 1px solid rgba(72, 187, 120, 0.2);
+            display: block;
+        }
+
+        .status.error {
+            background: rgba(245, 101, 101, 0.1);
+            color: #e53e3e;
+            border: 1px solid rgba(245, 101, 101, 0.2);
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .feature-info {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 32px;
+            text-align: left;
+        }
+
+        .feature-info h4 {
+            color: #4a5568;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .feature-info ul {
+            list-style: none;
+            color: #718096;
+        }
+
+        .feature-info li {
+            padding: 4px 0;
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .feature-info li:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .upload-pair {
+                flex-direction: column;
+                gap: 24px;
+            }
+            
+            .container {
+                padding: 32px 24px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Back to Home</a>
+    
+    <div class="container">
+        <h1>JAR Comparison</h1>
+        <p class="subtitle">Compare two JAR files to identify changes at multiple levels</p>
+        
+        <div class="feature-info">
+            <h4>Comparison Features:</h4>
+            <ul>
+                <li>Project-level differences and metadata changes</li>
+                <li>Package structure modifications and additions/removals</li>
+                <li>Class-level changes including new, modified, and deleted classes</li>
+                <li>Method-level analysis with signature and implementation changes</li>
+            </ul>
+        </div>
+        
+        <div class="upload-pair">
+            <div class="upload-container">
+                <h3>Original JAR</h3>
+                <div class="jar-upload-area" id="jarUploadArea1">
+                    <div class="jar-upload-icon">📁</div>
+                    <div class="jar-upload-text">Select JAR file</div>
+                    <div class="jar-upload-hint">Drag & drop or click to browse</div>
+                    <input type="file" id="jarFileInput1" accept=".jar" style="display: none;" />
+                </div>
+                <div class="jar-selected-file" id="jarSelectedFile1"></div>
+            </div>
+            
+            <div class="upload-container">
+                <h3>Updated JAR</h3>
+                <div class="jar-upload-area" id="jarUploadArea2">
+                    <div class="jar-upload-icon">📁</div>
+                    <div class="jar-upload-text">Select JAR file</div>
+                    <div class="jar-upload-hint">Drag & drop or click to browse</div>
+                    <input type="file" id="jarFileInput2" accept=".jar" style="display: none;" />
+                </div>
+                <div class="jar-selected-file" id="jarSelectedFile2"></div>
+            </div>
+        </div>
+
+        <button class="compare-btn" id="compareBtn" disabled>
+            Compare JARs
+        </button>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        let selectedFile1 = null;
+        let selectedFile2 = null;
+
+        // Setup upload areas
+        setupJarUpload('jarUploadArea1', 'jarFileInput1', 'jarSelectedFile1', 1);
+        setupJarUpload('jarUploadArea2', 'jarFileInput2', 'jarSelectedFile2', 2);
+
+        function setupJarUpload(areaId, inputId, selectedId, fileNumber) {
+            const uploadArea = document.getElementById(areaId);
+            const fileInput = document.getElementById(inputId);
+            const selectedFileDiv = document.getElementById(selectedId);
+
+            uploadArea.addEventListener('click', () => fileInput.click());
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleJarFileSelection(files[0], selectedFileDiv, fileNumber);
+                }
+            });
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    handleJarFileSelection(file, selectedFileDiv, fileNumber);
+                }
+            });
+        }
+
+        function handleJarFileSelection(file, selectedFileDiv, fileNumber) {
+            if (file.name.toLowerCase().endsWith('.jar')) {
+                selectedFileDiv.textContent = `${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+                selectedFileDiv.style.display = 'block';
+                
+                if (fileNumber === 1) {
+                    selectedFile1 = file;
+                } else {
+                    selectedFile2 = file;
+                }
+                
+                // Enable compare button if both files are selected
+                const compareBtn = document.getElementById('compareBtn');
+                compareBtn.disabled = !(selectedFile1 && selectedFile2);
+                
+                // Clear any previous status
+                hideStatus();
+            } else {
+                showStatus('Please select a valid JAR file.', 'error');
+                selectedFileDiv.style.display = 'none';
+                if (fileNumber === 1) {
+                    selectedFile1 = null;
+                } else {
+                    selectedFile2 = null;
+                }
+                document.getElementById('compareBtn').disabled = true;
+            }
+        }
+
+        // Compare button click
+        document.getElementById('compareBtn').addEventListener('click', function() {
+            if (!selectedFile1 || !selectedFile2) {
+                showStatus('Please select both JAR files.', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('oldJar', selectedFile1);
+            formData.append('newJar', selectedFile2);
+
+            showStatus('Comparing JARs...', 'processing');
+            this.disabled = true;
+
+            fetch('/api/jar-comparison/compare', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                console.log('Fetch response received:', response);
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('JSON data received:', data);
+                console.log('About to store data and redirect...');
+                
+                try {
+                    showStatus('Comparison completed! Redirecting to report...', 'success');
+                    
+                    // Check if we have a downloadUrl (new format like project analyzer)
+                    if (data.downloadUrl) {
+                        console.log('Redirecting to downloadUrl:', data.downloadUrl);
+                        // Redirect directly to the generated HTML report
+                        setTimeout(() => {
+                            window.location.href = data.downloadUrl;
+                        }, 1000);
+                    } else {
+                        // Fallback: store data and redirect to results page (old format)
+                        console.log('Using fallback: storing data in localStorage and redirecting to results page');
+                        localStorage.setItem('jarComparisonResult', JSON.stringify(data));
+                        console.log('Data stored in localStorage successfully');
+                        
+                        // Force the redirect with a small delay to ensure localStorage is written
+                        setTimeout(() => {
+                            console.log('Executing redirect now...');
+                            try {
+                                window.location.href = 'jar-comparison-results.html';
+                            } catch (redirectError) {
+                                console.error('Redirect failed:', redirectError);
+                                // Fallback: show manual link
+                                showStatus(`Comparison completed! <a href="jar-comparison-results.html" style="color: white; text-decoration: underline;">Click here to view results</a>`, 'success');
+                            }
+                        }, 100);
+                    }
+                    
+                } catch (storageError) {
+                    console.error('Error storing data or redirecting:', storageError);
+                    showStatus('Error storing comparison result. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('Error comparing JARs. Please try again.', 'error');
+            })
+            .finally(() => {
+                this.disabled = false;
+            });
+        });
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            
+            if (type === 'processing') {
+                status.innerHTML = `<span class="spinner"></span>${message}`;
+            } else {
+                status.innerHTML = message; // Changed from textContent to innerHTML to allow HTML links
+            }
+        }
+
+        function hideStatus() {
+            const status = document.getElementById('status');
+            status.className = 'status';
+            status.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

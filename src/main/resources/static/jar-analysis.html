@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 48px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 1.1rem;
+            margin-bottom: 48px;
+            font-weight: 400;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e0;
+            border-radius: 16px;
+            padding: 48px 24px;
+            margin-bottom: 32px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 16px;
+        }
+
+        .upload-text {
+            color: #4a5568;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .upload-hint {
+            color: #a0aec0;
+            font-size: 0.9rem;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .selected-file {
+            background: rgba(72, 187, 120, 0.1);
+            color: #38a169;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 16px 0 24px 0;
+            font-weight: 500;
+            display: none;
+        }
+
+        .analyze-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 16px 48px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0.5;
+            pointer-events: none;
+            width: 100%;
+        }
+
+        .analyze-btn:enabled {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .analyze-btn:enabled:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .analyze-btn:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 12px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.processing {
+            background: rgba(54, 162, 235, 0.1);
+            color: #3182ce;
+            border: 1px solid rgba(54, 162, 235, 0.2);
+            display: block;
+        }
+
+        .status.success {
+            background: rgba(72, 187, 120, 0.1);
+            color: #38a169;
+            border: 1px solid rgba(72, 187, 120, 0.2);
+            display: block;
+        }
+
+        .status.error {
+            background: rgba(245, 101, 101, 0.1);
+            color: #e53e3e;
+            border: 1px solid rgba(245, 101, 101, 0.2);
+            display: block;
+        }
+
+        .download-btn {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn:hover {
+            background: #38a169;
+            transform: translateY(-1px);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 32px 24px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Back to Home</a>
+    
+    <div class="container">
+        <h1>Project Analysis</h1>
+        <p class="subtitle">Analyze project dependencies, vulnerabilities, and compatibility from ZIP files</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Choose ZIP file or drag & drop</div>
+            <div class="upload-hint">Supports .zip files up to 100MB</div>
+            <input type="file" id="fileInput" accept=".zip" />
+        </div>
+        <div class="selected-file" id="selectedFile"></div>
+
+        <button class="analyze-btn" id="analyzeBtn" disabled>
+            Analyze Project
+        </button>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        // Upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const selectedFileDiv = document.getElementById('selectedFile');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelection(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileSelection(file);
+            }
+        }
+
+        function handleFileSelection(file) {
+            if (file.name.toLowerCase().endsWith('.zip')) {
+                selectedFileDiv.textContent = `Selected: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+                selectedFileDiv.style.display = 'block';
+                analyzeBtn.disabled = false;
+            } else {
+                showStatus('Please select a valid ZIP file.', 'error');
+                selectedFileDiv.style.display = 'none';
+                analyzeBtn.disabled = true;
+            }
+        }
+
+        // Analysis button click
+        analyzeBtn.addEventListener('click', function() {
+            const file = fileInput.files[0];
+            if (!file) {
+                showStatus('Please select a ZIP file first.', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('format', 'html');
+
+            showStatus('Analyzing project...', 'processing');
+            this.disabled = true;
+
+            fetch('/api/dependency-analysis/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    return response.blob();
+                }
+            })
+            .then(data => {
+                if (data instanceof Blob) {
+                    // This shouldn't happen since we're requesting HTML
+                    showStatus('Analysis complete! Report downloaded.', 'success');
+                } else {
+                    // Store the result for download options and redirect to HTML report
+                    localStorage.setItem('analysisResult', JSON.stringify(data));
+                    
+                    showStatus('Analysis complete! Redirecting to report...', 'success');
+                    
+                    // Redirect to HTML report after a short delay
+                    setTimeout(() => {
+                        if (data.downloadUrl) {
+                            // Redirect to the HTML report with analysis data stored
+                            window.location.href = data.downloadUrl;
+                        } else {
+                            // Fallback to results page
+                            window.location.href = 'analysis-results.html';
+                        }
+                    }, 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('Error analyzing project. Please try again.', 'error');
+            })
+            .finally(() => {
+                this.disabled = false;
+            });
+        });
+
+        function showStatus(message, type, downloadUrl = null) {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            
+            if (type === 'processing') {
+                status.innerHTML = `<span class="spinner"></span>${message}`;
+            } else if (downloadUrl) {
+                status.innerHTML = `${message} <a href="${downloadUrl}" class="download-btn" download>Download Report</a>`;
+            } else {
+                status.textContent = message;
+            }
+        }
+    </script>
+</body>
+</html>

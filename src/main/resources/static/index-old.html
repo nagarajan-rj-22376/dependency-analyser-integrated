@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dependency Analysis Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 48px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 1.1rem;
+            margin-bottom: 48px;
+            font-weight: 400;
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e0;
+            border-radius: 16px;
+            padding: 48px 24px;
+            margin-bottom: 32px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 16px;
+        }
+
+        .upload-text {
+            color: #4a5568;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .upload-hint {
+            color: #a0aec0;
+            font-size: 0.9rem;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .analyze-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 16px 48px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0.5;
+            pointer-events: none;
+            width: 100%;
+        }
+
+        .analyze-btn:enabled {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .analyze-btn:enabled:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .analyze-btn:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 12px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.processing {
+            background: rgba(54, 162, 235, 0.1);
+            color: #3182ce;
+            border: 1px solid rgba(54, 162, 235, 0.2);
+            display: block;
+        }
+
+        .status.success {
+            background: rgba(72, 187, 120, 0.1);
+            color: #38a169;
+            border: 1px solid rgba(72, 187, 120, 0.2);
+            display: block;
+        }
+
+        .status.error {
+            background: rgba(245, 101, 101, 0.1);
+            color: #e53e3e;
+            border: 1px solid rgba(245, 101, 101, 0.2);
+            display: block;
+        }
+
+        .download-btn {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn:hover {
+            background: #38a169;
+            transform: translateY(-1px);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .selected-file {
+            background: rgba(72, 187, 120, 0.1);
+            color: #38a169;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 16px 0 24px 0;
+            font-weight: 500;
+            display: none;
+        }
+
+        .upload-section {
+            margin-bottom: 32px;
+        }
+
+        .format-btn.active {
+            background: #667eea;
+            border-color: #667eea;
+            color: white;
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .format-btn.active .format-desc {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* New styles for analysis type selection */
+        .analysis-type-selector {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+
+        .analysis-type-btn {
+            flex: 1;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 32px 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            min-width: 200px;
+        }
+
+        .analysis-type-btn:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+        }
+
+        .analysis-type-btn.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .analysis-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        .analysis-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #2d3748;
+        }
+
+        .analysis-type-btn.active .analysis-title {
+            color: white;
+        }
+
+        .analysis-desc {
+            font-size: 0.95rem;
+            color: #718096;
+            line-height: 1.4;
+        }
+
+        .analysis-type-btn.active .analysis-desc {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .analysis-section {
+            text-align: left;
+        }
+
+        .analysis-section h2 {
+            color: #2d3748;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .section-subtitle {
+            color: #718096;
+            font-size: 1rem;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        /* JAR Comparison specific styles */
+        .jar-upload-container {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+
+        .jar-upload-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .jar-label {
+            display: block;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .upload-area.small {
+            padding: 32px 16px;
+            margin-bottom: 16px;
+        }
+
+        .upload-area.small .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .upload-area.small .upload-text {
+            font-size: 1rem;
+        }
+
+        .vs-separator {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            padding: 0 16px;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 32px 24px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .format-selector {
+                flex-direction: column;
+            }
+            
+            .format-btn {
+                width: 100%;
+            }
+
+            .analysis-type-selector {
+                flex-direction: column;
+            }
+
+            .jar-upload-container {
+                flex-direction: column;
+            }
+
+            .vs-separator {
+                transform: rotate(90deg);
+                margin: 16px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dependency Analysis</h1>
+        <p class="subtitle">Choose your analysis type</p>
+        
+        <!-- Main Selection Buttons -->
+        <div class="analysis-type-selector">
+            <button class="analysis-type-btn" id="projectAnalysisBtn">
+                <div class="analysis-icon">📦</div>
+                <div class="analysis-title">Project Analysis</div>
+                <div class="analysis-desc">Analyze ZIP/WAR files for vulnerabilities and deprecations</div>
+            </button>
+            
+            <button class="analysis-type-btn" id="jarComparisonBtn">
+                <div class="analysis-icon">⚖️</div>
+                <div class="analysis-title">JAR Comparison</div>
+                <div class="analysis-desc">Compare two JAR files to see differences</div>
+            </button>
+        </div>
+        
+        <!-- Project Analysis Section -->
+        <div id="projectAnalysisSection" class="analysis-section" style="display: none;">
+            <h2>Project Analysis</h2>
+            <p class="section-subtitle">Upload your project ZIP or WAR file for comprehensive dependency analysis</p>
+            
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📦</div>
+                <div class="upload-text">Drop your ZIP or WAR file here</div>
+                <div class="upload-hint">or click to browse</div>
+                <input type="file" id="fileInput" accept=".zip,.war" />
+            </div>
+            
+            <div class="selected-file" id="selectedFile"></div>
+            
+            <button class="analyze-btn" id="analyzeBtn" disabled>
+                Analyze Dependencies
+            </button>
+            
+            <div class="status" id="status"></div>
+        </div>
+        
+        <!-- JAR Comparison Section -->
+        <div id="jarComparisonSection" class="analysis-section" style="display: none;">
+            <h2>JAR Comparison</h2>
+            <p class="section-subtitle">Upload two JAR files to compare their differences</p>
+            
+            <div class="jar-upload-container">
+                <div class="jar-upload-group">
+                    <label class="jar-label">Old Version JAR</label>
+                    <div class="upload-area small" onclick="document.getElementById('oldJarInput').click()">
+                        <div class="upload-icon">📄</div>
+                        <div class="upload-text">Old JAR file</div>
+                        <input type="file" id="oldJarInput" accept=".jar" />
+                    </div>
+                    <div class="selected-file" id="selectedOldJar"></div>
+                </div>
+                
+                <div class="vs-separator">VS</div>
+                
+                <div class="jar-upload-group">
+                    <label class="jar-label">New Version JAR</label>
+                    <div class="upload-area small" onclick="document.getElementById('newJarInput').click()">
+                        <div class="upload-icon">📄</div>
+                        <div class="upload-text">New JAR file</div>
+                        <input type="file" id="newJarInput" accept=".jar" />
+                    </div>
+                    <div class="selected-file" id="selectedNewJar"></div>
+                </div>
+            </div>
+            
+            <button class="analyze-btn" id="compareBtn" disabled>
+                Compare JARs
+            </button>
+            
+            <div class="status" id="compareStatus"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        let selectedOldJar = null;
+        let selectedNewJar = null;
+        let currentAnalysisType = null;
+        
+        const fileInput = document.getElementById('fileInput');
+        const oldJarInput = document.getElementById('oldJarInput');
+        const newJarInput = document.getElementById('newJarInput');
+        
+        const uploadArea = document.querySelector('.upload-area');
+        const selectedFileDiv = document.getElementById('selectedFile');
+        const selectedOldJarDiv = document.getElementById('selectedOldJar');
+        const selectedNewJarDiv = document.getElementById('selectedNewJar');
+        
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const compareBtn = document.getElementById('compareBtn');
+        const status = document.getElementById('status');
+        const compareStatus = document.getElementById('compareStatus');
+        
+        const projectAnalysisBtn = document.getElementById('projectAnalysisBtn');
+        const jarComparisonBtn = document.getElementById('jarComparisonBtn');
+        const projectAnalysisSection = document.getElementById('projectAnalysisSection');
+        const jarComparisonSection = document.getElementById('jarComparisonSection');
+        
+        // Analysis type selection
+        projectAnalysisBtn.addEventListener('click', () => {
+            setAnalysisType('project');
+        });
+        
+        jarComparisonBtn.addEventListener('click', () => {
+            setAnalysisType('comparison');
+        });
+        
+        function setAnalysisType(type) {
+            currentAnalysisType = type;
+            
+            // Update button states
+            projectAnalysisBtn.classList.toggle('active', type === 'project');
+            jarComparisonBtn.classList.toggle('active', type === 'comparison');
+            
+            // Show/hide sections
+            projectAnalysisSection.style.display = type === 'project' ? 'block' : 'none';
+            jarComparisonSection.style.display = type === 'comparison' ? 'block' : 'none';
+        }
+        
+        // Project Analysis Event Listeners
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0], 'project');
+            }
+        });
+        
+        analyzeBtn.addEventListener('click', analyzeFile);
+        
+        // JAR Comparison Event Listeners
+        oldJarInput.addEventListener('change', (e) => handleJarFileSelect(e, 'old'));
+        newJarInput.addEventListener('change', (e) => handleJarFileSelect(e, 'new'));
+        compareBtn.addEventListener('click', compareJars);
+        
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file, 'project');
+            }
+        }
+        
+        function handleJarFileSelect(e, type) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file, type);
+            }
+        }
+        
+        function handleFile(file, type) {
+            if (type === 'project') {
+                const fileName = file.name.toLowerCase();
+                if (!fileName.endsWith('.zip') && !fileName.endsWith('.war')) {
+                    showStatus('Please select a ZIP or WAR file', 'error');
+                    return;
+                }
+                selectedFile = file;
+                selectedFileDiv.textContent = `Selected: ${file.name}`;
+                selectedFileDiv.style.display = 'block';
+                analyzeBtn.disabled = false;
+                hideStatus();
+            } else if (type === 'old') {
+                const fileName = file.name.toLowerCase();
+                if (!fileName.endsWith('.jar')) {
+                    showCompareStatus('Please select a JAR file for old version', 'error');
+                    return;
+                }
+                selectedOldJar = file;
+                selectedOldJarDiv.textContent = `Selected: ${file.name}`;
+                selectedOldJarDiv.style.display = 'block';
+                updateCompareButton();
+            } else if (type === 'new') {
+                const fileName = file.name.toLowerCase();
+                if (!fileName.endsWith('.jar')) {
+                    showCompareStatus('Please select a JAR file for new version', 'error');
+                    return;
+                }
+                selectedNewJar = file;
+                selectedNewJarDiv.textContent = `Selected: ${file.name}`;
+                selectedNewJarDiv.style.display = 'block';
+                updateCompareButton();
+            }
+        }
+        
+        function updateCompareButton() {
+            compareBtn.disabled = !(selectedOldJar && selectedNewJar);
+            if (selectedOldJar && selectedNewJar) {
+                hideCompareStatus();
+            }
+        }
+        
+        async function analyzeFile() {
+            if (!selectedFile) return;
+            
+            analyzeBtn.innerHTML = '<span class="spinner"></span>Processing...';
+            analyzeBtn.disabled = true;
+            showStatus('Analyzing dependencies...', 'processing');
+            
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            
+            try {
+                const response = await fetch('/api/reports/upload/html', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.text();
+                    console.log('Analysis successful, result:', result);
+                    showStatus('Analysis complete! Redirecting...', 'success');
+                    
+                    setTimeout(() => {
+                        const resultsUrl = `${window.location.origin}/results.html?file=dependency-analysis-report`;
+                        window.location.href = resultsUrl;
+                    }, 1500);
+                } else {
+                    throw new Error(`Analysis failed: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Analysis error:', error);
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    showStatus('Network error: Please ensure you\'re accessing the page from http://localhost:8081', 'error');
+                } else {
+                    showStatus(`Error: ${error.message}`, 'error');
+                }
+                analyzeBtn.innerHTML = 'Analyze Dependencies';
+                analyzeBtn.disabled = false;
+            }
+        }
+        
+        async function compareJars() {
+            if (!selectedOldJar || !selectedNewJar) return;
+            
+            compareBtn.innerHTML = '<span class="spinner"></span>Comparing...';
+            compareBtn.disabled = true;
+            showCompareStatus('Comparing JAR files...', 'processing');
+            
+            const formData = new FormData();
+            formData.append('oldJar', selectedOldJar);
+            formData.append('newJar', selectedNewJar);
+            
+            try {
+                const response = await fetch('/api/jar-comparison/compare', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Comparison successful, result:', result);
+                    showCompareStatus('Comparison complete! Redirecting...', 'success');
+                    
+                    // Store result in sessionStorage and redirect
+                    sessionStorage.setItem('jarComparisonResult', JSON.stringify(result));
+                    setTimeout(() => {
+                        window.location.href = 'jar-comparison-results.html';
+                    }, 1500);
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Comparison failed: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Comparison error:', error);
+                showCompareStatus(`Error: ${error.message}`, 'error');
+                compareBtn.innerHTML = 'Compare JARs';
+                compareBtn.disabled = !(selectedOldJar && selectedNewJar);
+            }
+        }
+        
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        function hideStatus() {
+            status.className = 'status';
+        }
+        
+        function showCompareStatus(message, type) {
+            compareStatus.textContent = message;
+            compareStatus.className = `status ${type}`;
+        }
+        
+        function hideCompareStatus() {
+            compareStatus.className = 'status';
+        }
+        
+        // Initialize with project analysis
+        setAnalysisType('project');
+    </script>
+</body>
+</html>

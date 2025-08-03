@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAR Comparison (Server Redirect)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        .submit-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .submit-btn:hover {
+            background-color: #0056b3;
+        }
+        .submit-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .info {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>JAR Comparison Tool (Server Redirect)</h1>
+        
+        <div class="info">
+            <strong>Info:</strong> This version uses server-side redirect to avoid JavaScript issues.
+            Upload two JAR files to compare their differences.
+        </div>
+
+        <form action="/api/jar-comparison/compare-and-redirect" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="oldJar">Old JAR File:</label>
+                <input type="file" id="oldJar" name="oldJar" accept=".jar" required>
+            </div>
+
+            <div class="form-group">
+                <label for="newJar">New JAR File:</label>
+                <input type="file" id="newJar" name="newJar" accept=".jar" required>
+            </div>
+
+            <button type="submit" class="submit-btn">Compare JARs</button>
+        </form>
+
+        <div style="margin-top: 30px; text-align: center;">
+            <p><a href="/">← Back to Main Page</a></p>
+            <p><a href="test-navigation.html">Test Navigation Helper</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Simple form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const oldJar = document.getElementById('oldJar').files[0];
+            const newJar = document.getElementById('newJar').files[0];
+            
+            if (!oldJar || !newJar) {
+                e.preventDefault();
+                alert('Please select both JAR files.');
+                return;
+            }
+            
+            // Disable submit button to prevent double submission
+            const submitBtn = document.querySelector('.submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+        });
+    </script>
+</body>
+</html>
