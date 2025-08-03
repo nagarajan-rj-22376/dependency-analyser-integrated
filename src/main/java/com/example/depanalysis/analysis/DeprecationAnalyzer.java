@@ -119,8 +119,13 @@ public class DeprecationAnalyzer implements DeprecationChecker {
         List<String> usageLocations = new ArrayList<>();
         
         for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].trim();
             Matcher matcher = compiledPattern.matcher(lines[i]);
             if (matcher.find()) {
+                // Skip method declarations - they typically start with access modifiers or are part of class declarations
+                if (isMethodDeclaration(line, methodName)) {
+                    continue;
+                }
                 usageLocations.add(filePath + ":" + (i + 1));
             }
         }
@@ -185,6 +190,11 @@ public class DeprecationAnalyzer implements DeprecationChecker {
                 String line = lines[i];
                 String simpleClassName = className.substring(className.lastIndexOf('.') + 1);
                 
+                // Skip method declarations
+                if (isMethodDeclaration(line.trim(), methodName)) {
+                    continue;
+                }
+                
                 // Only report if we can reasonably assume this is the deprecated method
                 if (line.contains(className) || 
                     line.contains(simpleClassName) || 
@@ -225,6 +235,48 @@ public class DeprecationAnalyzer implements DeprecationChecker {
                 issues.add(issue);
             }
         }
+    }
+    
+    /**
+     * Check if a line contains a method declaration rather than a method call
+     */
+    private boolean isMethodDeclaration(String line, String methodName) {
+        // Remove leading/trailing whitespace and normalize
+        line = line.trim();
+        
+        // Skip empty lines and comments
+        if (line.isEmpty() || line.startsWith("//") || line.startsWith("/*") || line.startsWith("*")) {
+            return false;
+        }
+        
+        // Check for method declaration patterns:
+        // 1. Access modifiers (public, private, protected)
+        // 2. Other modifiers (static, final, abstract, synchronized, etc.)
+        // 3. Return type followed by method name
+        String[] methodDeclarationPatterns = {
+            "\\b(public|private|protected)\\s+.*\\b" + Pattern.quote(methodName) + "\\s*\\(",
+            "\\b(static|final|abstract|synchronized|native)\\s+.*\\b" + Pattern.quote(methodName) + "\\s*\\(",
+            "\\b[A-Z][a-zA-Z0-9_]*\\s+" + Pattern.quote(methodName) + "\\s*\\(",  // Return type + method name
+            "\\bvoid\\s+" + Pattern.quote(methodName) + "\\s*\\(",  // void return type
+            "\\b(int|long|double|float|boolean|char|byte|short)\\s+" + Pattern.quote(methodName) + "\\s*\\("  // primitive return types
+        };
+        
+        for (String pattern : methodDeclarationPatterns) {
+            if (Pattern.compile(pattern).matcher(line).find()) {
+                return true;
+            }
+        }
+        
+        // Additional check: if the line contains both method name and opening brace on same line,
+        // it's likely a method declaration
+        if (line.contains(methodName + "(") && (line.contains("{") || line.endsWith(";"))) {
+            // But make sure it's not a method call within another method (should have a dot before it)
+            if (!line.contains("." + methodName + "(")) {
+                return true;
+            }
+        }
+        
+        return false;
     }
     
     private boolean isLikelyMatch(String className, String methodName, String line) {

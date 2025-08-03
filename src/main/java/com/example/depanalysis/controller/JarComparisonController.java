@@ -70,8 +70,9 @@ public class JarComparisonController {
             logger.info("Package level changes count: {}", result.getPackageLevel() != null ? result.getPackageLevel().size() : 0);
             logger.info("Class level changes count: {}", result.getClassLevel() != null ? result.getClassLevel().size() : 0);
 
-            // Generate HTML report and save to reports directory
-            String reportFilename = generateJarComparisonReport(result);
+            // Generate HTML and JSON reports and save to reports directory
+            String jsonFilename = generateJarComparisonJsonReport(result);
+            String htmlFilename = generateJarComparisonReport(result, jsonFilename);
             
             // Clean up temporary files
             Files.deleteIfExists(oldJarPath);
@@ -82,7 +83,8 @@ public class JarComparisonController {
             
             // Return response with downloadUrl like project analyzer
             return ResponseEntity.ok(java.util.Map.of(
-                "downloadUrl", "/" + reportFilename,
+                "downloadUrl", "/reports/" + htmlFilename,
+                "jsonUrl", "/reports/" + jsonFilename,
                 "message", "JAR comparison completed successfully",
                 "summary", result.getSummary()
             ));
@@ -245,14 +247,14 @@ public class JarComparisonController {
             "</html>", message);
     }
 
-    private String generateJarComparisonReport(JarComparisonResult result) throws IOException {
+    private String generateJarComparisonReport(JarComparisonResult result, String jsonFilename) throws IOException {
         // Generate HTML report similar to existing jar-comparison-results.html
         String timestamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
         String filename = "jar-comparison-report-" + timestamp + ".html";
         
-        // Generate directly in the static directory (not in a subdirectory)
-        Path staticDir = Paths.get("target/classes/static");
-        Files.createDirectories(staticDir);
+        // Generate directly in the reports directory (same as project analyzer)
+        Path reportsDir = Paths.get("reports");
+        Files.createDirectories(reportsDir);
         
         // Read the template from jar-comparison-results.html in classpath
         String template;
@@ -278,6 +280,10 @@ public class JarComparisonController {
         com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         String jsonResult = mapper.writeValueAsString(result);
         
+        // Create enhanced result with download URLs
+        String enhancedResult = jsonResult.replaceAll("\\}$", 
+            ",\"jsonUrl\":\"/reports/" + jsonFilename + "\",\"downloadUrl\":\"/reports/" + filename + "\"}");
+        
         // Inject the data into the template
         String reportHtml = template.replace(
             "loadComparisonResults();",
@@ -286,15 +292,37 @@ public class JarComparisonController {
                 "                const preloadedResult = %s;\n" +
                 "                console.log('Using pre-loaded comparison result:', preloadedResult);\n" +
                 "                displayResults(preloadedResult);",
-                jsonResult
+                enhancedResult
             )
         );
         
-        // Write the report to the static directory
-        Path reportPath = staticDir.resolve(filename);
+        // Write the report to the reports directory
+        Path reportPath = reportsDir.resolve(filename);
         Files.writeString(reportPath, reportHtml);
         
         logger.info("Generated JAR comparison report: {}", reportPath);
+        
+        return filename;
+    }
+
+    private String generateJarComparisonJsonReport(JarComparisonResult result) throws IOException {
+        // Generate JSON report
+        String timestamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+        String filename = "jar-comparison-report-" + timestamp + ".json";
+        
+        // Generate in the reports directory (same as project analyzer and HTML report)
+        Path reportsDir = Paths.get("reports");
+        Files.createDirectories(reportsDir);
+        
+        // Convert result to JSON
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        String jsonResult = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(result);
+        
+        // Write the JSON report to the reports directory
+        Path reportPath = reportsDir.resolve(filename);
+        Files.writeString(reportPath, jsonResult);
+        
+        logger.info("Generated JAR comparison JSON report: {}", reportPath);
         
         return filename;
     }
